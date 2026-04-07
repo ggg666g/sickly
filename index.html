@@ -35,6 +35,17 @@
             position: relative;
         }
 
+        /* Interactive Spider Web Background */
+        #web-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0; /* Deepest layer */
+            pointer-events: none; /* Let clicks pass through to buttons */
+        }
+
         /* Edge Glow Visualizer */
         #edge-glow-visualizer {
             position: absolute;
@@ -44,7 +55,6 @@
             height: 100%;
             z-index: 1; 
             pointer-events: none; 
-            /* Removed the transition so it can update instantly with the audio framerate */
             opacity: 0; 
         }
 
@@ -206,6 +216,8 @@
 </head>
 <body>
 
+    <canvas id="web-canvas"></canvas>
+
     <div id="edge-glow-visualizer"></div>
 
     <div id="init-screen">
@@ -226,6 +238,124 @@
     </div>
 
     <script>
+        /* =========================================
+           SPIDER WEB BACKGROUND LOGIC
+        ========================================= */
+        const canvas = document.getElementById('web-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let particles = [];
+        const mouse = { x: null, y: null };
+
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor(x, y, isClick) {
+                this.x = x || Math.random() * width;
+                this.y = y || Math.random() * height;
+                // Give clicked particles a faster, explosive speed
+                let speed = isClick ? (Math.random() * 4 + 1) : 0.5;
+                this.vx = (Math.random() - 0.5) * speed;
+                this.vy = (Math.random() - 0.5) * speed;
+                this.radius = 1.5;
+            }
+            update() {
+                // Friction to slow down explosive clicks back to normal drifting speed
+                if (Math.abs(this.vx) > 0.5) this.vx *= 0.98;
+                if (Math.abs(this.vy) > 0.5) this.vy *= 0.98;
+                
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // Bounce off walls
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+            }
+            draw() {
+                ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Initialize starting particles based on screen size
+        const particleCount = window.innerWidth < 600 ? 40 : 80;
+        for(let i = 0; i < particleCount; i++) {
+            particles.push(new Particle());
+        }
+
+        // Track Mouse
+        window.addEventListener('mousemove', e => {
+            mouse.x = e.x;
+            mouse.y = e.y;
+        });
+        window.addEventListener('mouseout', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        // Spawn new web nodes on click
+        window.addEventListener('click', e => {
+            for(let i = 0; i < 8; i++) {
+                particles.push(new Particle(e.x, e.y, true));
+            }
+            // Prevent lag by capping total particles
+            if(particles.length > 150) {
+                particles.splice(0, 8);
+            }
+        });
+
+        function animateWeb() {
+            ctx.clearRect(0, 0, width, height);
+            
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+                
+                // Connect particles to each other
+                for (let j = i; j < particles.length; j++) {
+                    let dx = particles[i].x - particles[j].x;
+                    let dy = particles[i].y - particles[j].y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (dist < 120) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(57, 255, 20, ${1 - dist/120})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+                
+                // Connect particles to mouse
+                if (mouse.x != null) {
+                    let dx = particles[i].x - mouse.x;
+                    let dy = particles[i].y - mouse.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 150) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(57, 255, 20, ${1 - dist/150})`;
+                        ctx.lineWidth = 1;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(mouse.x, mouse.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animateWeb);
+        }
+        animateWeb();
+
+        /* =========================================
+           BOOT SEQUENCE & AUDIO VISUALIZER LOGIC
+        ========================================= */
         const initScreen = document.getElementById('init-screen');
         const initBtn = document.getElementById('init-btn');
         const bootScreen = document.getElementById('boot-screen');
@@ -252,7 +382,6 @@
         let lineIndex = 0;
         let spinnerInterval = null;
 
-        // Visualizer State Variables
         let audioContext = null;
         let analyser = null;
         let dataArray = null;
@@ -261,7 +390,6 @@
         initBtn.addEventListener('click', () => {
             initScreen.style.opacity = '0';
             
-            // Setup Audio Context on click
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             setupAudioAnalyser();
 
@@ -277,8 +405,6 @@
 
             analyser = audioContext.createAnalyser();
             analyser.fftSize = 256; 
-
-            // Allow cross-origin audio processing if hosted externally
             siteAudio.crossOrigin = "anonymous"; 
 
             const source = audioContext.createMediaElementSource(siteAudio);
@@ -291,31 +417,25 @@
             isAudioSetup = true;
         }
 
-        // NEW CONTINUOUS MAPPING LOGIC
         function detectBeat() {
             if (!analyser || !dataArray) return;
 
             analyser.getByteFrequencyData(dataArray);
 
-            // Calculate the raw volume of the bass frequencies (first 12 bins)
             let sumBass = 0;
             const bassBins = 12; 
             for (let i = 0; i < bassBins; i++) {
                 sumBass += dataArray[i];
             }
-            const averageBass = sumBass / bassBins; // Value between 0 and 255
+            const averageBass = sumBass / bassBins; 
 
-            // Normalize the bass volume to a decimal between 0.0 and 1.0
-            // We subtract 30 so quiet background noise doesn't trigger the glow
             let intensity = (averageBass - 30) / 200; 
             if (intensity < 0) intensity = 0;
             if (intensity > 1) intensity = 1;
 
-            // Map the intensity directly to the size and brightness of the glow
-            const spread = 10 + (intensity * 120); // Base 10px, spikes up to 130px
-            const alpha = 0.1 + (intensity * 0.7); // Base 10% opacity, spikes up to 80% opacity
+            const spread = 10 + (intensity * 120); 
+            const alpha = 0.1 + (intensity * 0.7); 
 
-            // Apply directly to the element every single frame
             edgeVisualizer.style.boxShadow = `inset 0 0 ${spread}px rgba(57, 255, 20, ${alpha}), 0 0 ${spread}px rgba(57, 255, 20, ${alpha})`;
 
             requestAnimationFrame(detectBeat);
