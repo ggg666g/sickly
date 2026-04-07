@@ -13,9 +13,7 @@
         :root {
             --bg-color: #030303;
             --term-green: #39ff14;
-            /* Functional glow values, downstream handles final appearance */
-            --subtle-glow: 0 0 10px rgba(57, 255, 20, 0.4), inset 0 0 10px rgba(57, 255, 20, 0.2);
-            --pulse-glow: 0 0 100px 30px rgba(57, 255, 20, 0.8), inset 0 0 50px rgba(57, 255, 20, 0.4);
+            --term-glow: 0 0 5px rgba(57, 255, 20, 0.4), 0 0 10px rgba(57, 255, 20, 0.2);
         }
 
         * {
@@ -37,18 +35,17 @@
             position: relative;
         }
 
-        /* dedicated container for the beat-sync edge glow visualizer */
+        /* Edge Glow Visualizer */
         #edge-glow-visualizer {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 1; /* lies behind all content, but in front of body background */
-            pointer-events: none; /* allows clicking things through the glow */
-            box-shadow: var(--subtle-glow); /* initial subtle state */
-            transition: box-shadow 0.1s ease-out; /* fast jump on beat, smooth decay */
-            opacity: 0; /* hidden until audio starts */
+            z-index: 1; 
+            pointer-events: none; 
+            /* Removed the transition so it can update instantly with the audio framerate */
+            opacity: 0; 
         }
 
         /* CRT Scanline Effect */
@@ -61,7 +58,7 @@
             bottom: 0;
             right: 0;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 2; /* lies over everything else */
+            z-index: 2; 
             background-size: 100% 2px, 3px 100%;
             pointer-events: none;
         }
@@ -143,6 +140,7 @@
             font-weight: normal;
             letter-spacing: -2px;
             position: relative;
+            text-shadow: var(--term-glow);
         }
 
         .cursor {
@@ -153,6 +151,7 @@
             vertical-align: bottom;
             animation: blink 1s step-end infinite;
             margin-left: 5px;
+            box-shadow: var(--term-glow);
         }
 
         @keyframes blink {
@@ -164,6 +163,7 @@
             margin-top: 10px;
             font-size: 1.2rem;
             opacity: 0.8;
+            text-shadow: var(--term-glow);
         }
 
         /* Sleek Social Buttons */
@@ -185,12 +185,14 @@
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
+            box-shadow: 0 0 5px rgba(57, 255, 20, 0.1);
         }
 
         .social-btn:hover {
             background-color: var(--term-green);
             color: var(--bg-color);
             font-weight: bold;
+            box-shadow: var(--term-glow);
         }
 
         @media (max-width: 600px) {
@@ -230,10 +232,9 @@
         const mainContent = document.getElementById('main-content');
         const edgeVisualizer = document.getElementById('edge-glow-visualizer');
         
-        // Define your audio file and parameters
         const siteAudio = new Audio('audio.mp3');
         siteAudio.loop = true; 
-        siteAudio.volume = 0.2; // Volume capped at 20%
+        siteAudio.volume = 0.2; 
         
         const bootSequence = [
             "INIT ROOT PROCESS...",
@@ -256,14 +257,11 @@
         let analyser = null;
         let dataArray = null;
         let isAudioSetup = false;
-        let beatThreshold = 1.35; // How much louder bass must be than average to register a beat
-        let bassAverage = 0;
 
-        // Start the sequence when the user clicks the button
         initBtn.addEventListener('click', () => {
             initScreen.style.opacity = '0';
             
-            // Setup Audio Context on the user interaction (required by browsers)
+            // Setup Audio Context on click
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             setupAudioAnalyser();
 
@@ -277,56 +275,50 @@
         function setupAudioAnalyser() {
             if (!audioContext || isAudioSetup) return;
 
-            // Create analyser node
             analyser = audioContext.createAnalyser();
-            analyser.fftSize = 256; // Smaller FFT size for focused beat detection
+            analyser.fftSize = 256; 
 
-            // Connect media element source to analyser, and analyser to speakers
+            // Allow cross-origin audio processing if hosted externally
+            siteAudio.crossOrigin = "anonymous"; 
+
             const source = audioContext.createMediaElementSource(siteAudio);
             source.connect(analyser);
             analyser.connect(audioContext.destination);
 
-            // Buffer to hold frequency data
             const bufferLength = analyser.frequencyBinCount;
             dataArray = new Uint8Array(bufferLength);
 
             isAudioSetup = true;
         }
 
+        // NEW CONTINUOUS MAPPING LOGIC
         function detectBeat() {
             if (!analyser || !dataArray) return;
 
-            // Fill dataArray with current audio snapshot
             analyser.getByteFrequencyData(dataArray);
 
-            // Focus on low frequencies (bass/drums) – typically first 10 bins
+            // Calculate the raw volume of the bass frequencies (first 12 bins)
             let sumBass = 0;
-            const bassBins = 10; 
+            const bassBins = 12; 
             for (let i = 0; i < bassBins; i++) {
                 sumBass += dataArray[i];
             }
-            const currentBassAverage = sumBass / bassBins;
+            const averageBass = sumBass / bassBins; // Value between 0 and 255
 
-            // Use a running average for stability
-            bassAverage = (bassAverage * 0.95) + (currentBassAverage * 0.05);
+            // Normalize the bass volume to a decimal between 0.0 and 1.0
+            // We subtract 30 so quiet background noise doesn't trigger the glow
+            let intensity = (averageBass - 30) / 200; 
+            if (intensity < 0) intensity = 0;
+            if (intensity > 1) intensity = 1;
 
-            // If current bass volume is spike significantly above recent average
-            if (currentBassAverage > bassAverage * beatThreshold && currentBassAverage > 50) {
-                pulseEdgeGlow();
-            }
+            // Map the intensity directly to the size and brightness of the glow
+            const spread = 10 + (intensity * 120); // Base 10px, spikes up to 130px
+            const alpha = 0.1 + (intensity * 0.7); // Base 10% opacity, spikes up to 80% opacity
 
-            // Loop the detection
+            // Apply directly to the element every single frame
+            edgeVisualizer.style.boxShadow = `inset 0 0 ${spread}px rgba(57, 255, 20, ${alpha}), 0 0 ${spread}px rgba(57, 255, 20, ${alpha})`;
+
             requestAnimationFrame(detectBeat);
-        }
-
-        function pulseEdgeGlow() {
-            // Apply intense glow instantantly
-            edgeVisualizer.style.boxShadow = getComputedStyle(document.documentElement).getPropertyValue('--pulse-glow');
-            
-            // Fast reset to subtle glow using transition
-            setTimeout(() => {
-                edgeVisualizer.style.boxShadow = getComputedStyle(document.documentElement).getPropertyValue('--subtle-glow');
-            }, 50); // Decay starts after a very short hold
         }
 
         function advanceBoot() {
@@ -353,20 +345,16 @@
                 }, nextDelay);
                 
             } else {
-                // Boot sequence finished
-                
-                // Play audio and start detection simultaneously
                 siteAudio.play().then(() => {
-                    detectBeat(); // Start sound analysis loop
+                    detectBeat(); 
                 }).catch(err => console.log("Audio failed to play:", err));
 
-                // Show main site and reveal subtle edge glow container
                 setTimeout(() => {
                     bootScreen.style.opacity = '0';
                     
                     setTimeout(() => {
                         bootScreen.style.display = 'none';
-                        edgeVisualizer.style.opacity = '1'; // Reveal visualizer element
+                        edgeVisualizer.style.opacity = '1'; 
                         mainContent.classList.add('visible');
                     }, 500);
                 }, 400); 
