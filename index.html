@@ -13,7 +13,9 @@
         :root {
             --bg-color: #030303;
             --term-green: #39ff14;
-            --term-glow: 0 0 5px rgba(57, 255, 20, 0.4), 0 0 10px rgba(57, 255, 20, 0.2);
+            /* Functional glow values, downstream handles final appearance */
+            --subtle-glow: 0 0 10px rgba(57, 255, 20, 0.4), inset 0 0 10px rgba(57, 255, 20, 0.2);
+            --pulse-glow: 0 0 100px 30px rgba(57, 255, 20, 0.8), inset 0 0 50px rgba(57, 255, 20, 0.4);
         }
 
         * {
@@ -35,6 +37,20 @@
             position: relative;
         }
 
+        /* dedicated container for the beat-sync edge glow visualizer */
+        #edge-glow-visualizer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1; /* lies behind all content, but in front of body background */
+            pointer-events: none; /* allows clicking things through the glow */
+            box-shadow: var(--subtle-glow); /* initial subtle state */
+            transition: box-shadow 0.1s ease-out; /* fast jump on beat, smooth decay */
+            opacity: 0; /* hidden until audio starts */
+        }
+
         /* CRT Scanline Effect */
         body::after {
             content: " ";
@@ -45,12 +61,12 @@
             bottom: 0;
             right: 0;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 2;
+            z-index: 2; /* lies over everything else */
             background-size: 100% 2px, 3px 100%;
             pointer-events: none;
         }
 
-        /* Initialize Screen to bypass Autoplay blockers */
+        /* Initialize Screen */
         #init-screen {
             position: absolute;
             z-index: 20;
@@ -74,9 +90,8 @@
             cursor: pointer;
             text-transform: uppercase;
             letter-spacing: 2px;
-            box-shadow: var(--term-glow);
             transition: all 0.2s ease;
-            animation: pulse 2s infinite;
+            animation: pulse-init 2s infinite;
         }
 
         #init-btn:hover {
@@ -85,7 +100,7 @@
             font-weight: bold;
         }
 
-        @keyframes pulse {
+        @keyframes pulse-init {
             0% { opacity: 0.8; box-shadow: 0 0 5px rgba(57, 255, 20, 0.4); }
             50% { opacity: 1; box-shadow: 0 0 20px rgba(57, 255, 20, 0.8); }
             100% { opacity: 0.8; box-shadow: 0 0 5px rgba(57, 255, 20, 0.4); }
@@ -97,14 +112,13 @@
             top: 25px;
             left: 25px;
             z-index: 10;
-            display: none; /* Hidden until Init */
+            display: none;
             flex-direction: column;
-            transition: opacity 0.5s ease-out; /* Sped up fade out */
+            transition: opacity 0.5s ease-out;
         }
 
         .log-line {
-            font-size: 20px; /* MADE TEXT LARGER */
-            text-shadow: var(--term-glow);
+            font-size: 20px;
             margin-bottom: 6px;
         }
 
@@ -128,7 +142,6 @@
             font-size: 5rem;
             font-weight: normal;
             letter-spacing: -2px;
-            text-shadow: 0 0 10px rgba(57, 255, 20, 0.5), 0 0 20px rgba(57, 255, 20, 0.3);
             position: relative;
         }
 
@@ -140,7 +153,6 @@
             vertical-align: bottom;
             animation: blink 1s step-end infinite;
             margin-left: 5px;
-            box-shadow: var(--term-glow);
         }
 
         @keyframes blink {
@@ -152,7 +164,6 @@
             margin-top: 10px;
             font-size: 1.2rem;
             opacity: 0.8;
-            text-shadow: var(--term-glow);
         }
 
         /* Sleek Social Buttons */
@@ -172,7 +183,6 @@
             text-transform: uppercase;
             letter-spacing: 2px;
             transition: all 0.3s ease;
-            box-shadow: 0 0 5px rgba(57, 255, 20, 0.1);
             position: relative;
             overflow: hidden;
         }
@@ -180,7 +190,6 @@
         .social-btn:hover {
             background-color: var(--term-green);
             color: var(--bg-color);
-            box-shadow: var(--term-glow);
             font-weight: bold;
         }
 
@@ -189,11 +198,13 @@
             .socials { flex-direction: column; gap: 15px; align-items: center; }
             .social-btn { width: 200px; }
             #boot-screen { top: 15px; left: 15px; }
-            .log-line { font-size: 16px; } /* MADE MOBILE TEXT LARGER */
+            .log-line { font-size: 16px; }
         }
     </style>
 </head>
 <body>
+
+    <div id="edge-glow-visualizer"></div>
 
     <div id="init-screen">
         <button id="init-btn">[ INITIATE CONNECTION ]</button>
@@ -217,11 +228,12 @@
         const initBtn = document.getElementById('init-btn');
         const bootScreen = document.getElementById('boot-screen');
         const mainContent = document.getElementById('main-content');
+        const edgeVisualizer = document.getElementById('edge-glow-visualizer');
         
-        // Define your audio file here
+        // Define your audio file and parameters
         const siteAudio = new Audio('audio.mp3');
         siteAudio.loop = true; 
-        siteAudio.volume = 0.2; // LOWERED VOLUME TO 20%
+        siteAudio.volume = 0.2; // Volume capped at 20%
         
         const bootSequence = [
             "INIT ROOT PROCESS...",
@@ -239,16 +251,83 @@
         let lineIndex = 0;
         let spinnerInterval = null;
 
+        // Visualizer State Variables
+        let audioContext = null;
+        let analyser = null;
+        let dataArray = null;
+        let isAudioSetup = false;
+        let beatThreshold = 1.35; // How much louder bass must be than average to register a beat
+        let bassAverage = 0;
+
         // Start the sequence when the user clicks the button
         initBtn.addEventListener('click', () => {
             initScreen.style.opacity = '0';
             
+            // Setup Audio Context on the user interaction (required by browsers)
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            setupAudioAnalyser();
+
             setTimeout(() => {
                 initScreen.style.display = 'none';
                 bootScreen.style.display = 'flex';
                 advanceBoot();
-            }, 300); // Sped up init transition
+            }, 300);
         });
+
+        function setupAudioAnalyser() {
+            if (!audioContext || isAudioSetup) return;
+
+            // Create analyser node
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256; // Smaller FFT size for focused beat detection
+
+            // Connect media element source to analyser, and analyser to speakers
+            const source = audioContext.createMediaElementSource(siteAudio);
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
+
+            // Buffer to hold frequency data
+            const bufferLength = analyser.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+
+            isAudioSetup = true;
+        }
+
+        function detectBeat() {
+            if (!analyser || !dataArray) return;
+
+            // Fill dataArray with current audio snapshot
+            analyser.getByteFrequencyData(dataArray);
+
+            // Focus on low frequencies (bass/drums) – typically first 10 bins
+            let sumBass = 0;
+            const bassBins = 10; 
+            for (let i = 0; i < bassBins; i++) {
+                sumBass += dataArray[i];
+            }
+            const currentBassAverage = sumBass / bassBins;
+
+            // Use a running average for stability
+            bassAverage = (bassAverage * 0.95) + (currentBassAverage * 0.05);
+
+            // If current bass volume is spike significantly above recent average
+            if (currentBassAverage > bassAverage * beatThreshold && currentBassAverage > 50) {
+                pulseEdgeGlow();
+            }
+
+            // Loop the detection
+            requestAnimationFrame(detectBeat);
+        }
+
+        function pulseEdgeGlow() {
+            // Apply intense glow instantantly
+            edgeVisualizer.style.boxShadow = getComputedStyle(document.documentElement).getPropertyValue('--pulse-glow');
+            
+            // Fast reset to subtle glow using transition
+            setTimeout(() => {
+                edgeVisualizer.style.boxShadow = getComputedStyle(document.documentElement).getPropertyValue('--subtle-glow');
+            }, 50); // Decay starts after a very short hold
+        }
 
         function advanceBoot() {
             if (lineIndex < bootSequence.length) {
@@ -257,41 +336,40 @@
                 bootScreen.appendChild(newLine);
                 
                 let spinnerIndex = 0;
-                
                 clearInterval(spinnerInterval);
                 
-                // Keep spinner moving fast
                 spinnerInterval = setInterval(() => {
                     newLine.textContent = `${bootSequence[lineIndex]} ${spinnerFrames[spinnerIndex]}`;
                     spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
-                }, 50); // Sped up spinner
+                }, 50);
 
-                // FASTER random delay between 0.15 and 0.45 seconds per line
                 const nextDelay = Math.floor(Math.random() * 300) + 150; 
                 
                 setTimeout(() => {
                     clearInterval(spinnerInterval);
                     newLine.textContent = bootSequence[lineIndex]; 
-                    
                     lineIndex++;
                     advanceBoot();
                 }, nextDelay);
                 
             } else {
-                // Boot sequence is completely finished
+                // Boot sequence finished
                 
-                // Play the audio!
-                siteAudio.play().catch(err => console.log("Audio failed to play:", err));
-                
-                // Fade out terminal and show main site
+                // Play audio and start detection simultaneously
+                siteAudio.play().then(() => {
+                    detectBeat(); // Start sound analysis loop
+                }).catch(err => console.log("Audio failed to play:", err));
+
+                // Show main site and reveal subtle edge glow container
                 setTimeout(() => {
                     bootScreen.style.opacity = '0';
                     
                     setTimeout(() => {
                         bootScreen.style.display = 'none';
+                        edgeVisualizer.style.opacity = '1'; // Reveal visualizer element
                         mainContent.classList.add('visible');
-                    }, 500); // Sped up final transition
-                }, 400); // Sped up hold before fade
+                    }, 500);
+                }, 400); 
             }
         }
     </script>
