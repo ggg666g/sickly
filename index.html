@@ -237,121 +237,89 @@
     </div>
 
     <script>
-        /* =========================================
-           SPIDER WEB BACKGROUND LOGIC
-        ========================================= */
-        const canvas = document.getElementById('web-canvas');
-        const ctx = canvas.getContext('2d');
-        let width, height;
-        let particles = [];
-        const mouse = { x: null, y: null };
+    /* =========================================
+   SPIDER WEB BACKGROUND LOGIC
+========================================= */
+const canvas = document.getElementById('web-canvas');
+const ctx = canvas.getContext('2d');
+let width, height;
+let particles = [];
+const mouse = { x: null, y: null };
 
-        function resizeCanvas() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+function resizeCanvas() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
-        class Particle {
-            constructor(x, y, isClick) {
-                this.x = x || Math.random() * width;
-                this.y = y || Math.random() * height;
-                // Give clicked particles a faster, explosive speed
-                let speed = isClick ? (Math.random() * 4 + 1) : 0.5;
-                this.vx = (Math.random() - 0.5) * speed;
-                this.vy = (Math.random() - 0.5) * speed;
-                this.radius = 1.5;
-            }
-            update() {
-                // Friction to slow down explosive clicks back to normal drifting speed
-                if (Math.abs(this.vx) > 0.5) this.vx *= 0.98;
-                if (Math.abs(this.vy) > 0.5) this.vy *= 0.98;
-                
-                this.x += this.vx;
-                this.y += this.vy;
-                
-                // Bounce off walls
-                if (this.x < 0 || this.x > width) this.vx *= -1;
-                if (this.y < 0 || this.y > height) this.vy *= -1;
-            }
-            draw() {
-                ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
+class Particle {
+    constructor(x, y, isClick) {
+        this.x = x || Math.random() * width;
+        this.y = y || Math.random() * height;
+        let speed = isClick ? (Math.random() * 4 + 1) : 0.5;
+        this.vx = (Math.random() - 0.5) * speed;
+        this.vy = (Math.random() - 0.5) * speed;
+        this.radius = 1.5;
+    }
+    update() {
+        if (Math.abs(this.vx) > 0.5) this.vx *= 0.98;
+        if (Math.abs(this.vy) > 0.5) this.vy *= 0.98;
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0 || this.x > width) this.vx *= -1;
+        if (this.y < 0 || this.y > height) this.vy *= -1;
+    }
+    draw() {
+        ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+const particleCount = window.innerWidth < 600 ? 40 : 80;
+for(let i = 0; i < particleCount; i++) {
+    particles.push(new Particle());
+}
+
+window.addEventListener('mousemove', e => {
+    mouse.x = e.x;
+    mouse.y = e.y;
+});
+
+window.addEventListener('click', e => {
+    for(let i = 0; i < 8; i++) {
+        particles.push(new Particle(e.x, e.y, true));
+    }
+    if(particles.length > 150) {
+        particles.splice(0, 8);
+    }
+});
+
+function animateWeb() {
+    ctx.clearRect(0, 0, width, height);
+    for (let i = 0; i < particles.length; i++) {
+        particles[i].update();
+        particles[i].draw();
+        for (let j = i; j < particles.length; j++) {
+            let dx = particles[i].x - particles[j].x;
+            let dy = particles[i].y - particles[j].y;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 120) {
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.strokeStyle = `rgba(57, 255, 20, ${1 - dist/120})`;
+                ctx.lineWidth = 0.5;
+                ctx.moveTo(particles[i].x, particles[i].y);
+                ctx.lineTo(particles[j].x, particles[j].y);
+                ctx.stroke();
             }
         }
+    }
+    requestAnimationFrame(animateWeb);
+}
+animateWeb();
 
-        // Initialize starting particles based on screen size
-        const particleCount = window.innerWidth < 600 ? 40 : 80;
-        for(let i = 0; i < particleCount; i++) {
-            particles.push(new Particle());
-        }
-
-        // Track Mouse
-        window.addEventListener('mousemove', e => {
-            mouse.x = e.x;
-            mouse.y = e.y;
-        });
-        window.addEventListener('mouseout', () => {
-            mouse.x = null;
-            mouse.y = null;
-        });
-
-        // Spawn new web nodes on click
-        window.addEventListener('click', e => {
-            for(let i = 0; i < 8; i++) {
-                particles.push(new Particle(e.x, e.y, true));
-            }
-            // Prevent lag by capping total particles
-            if(particles.length > 150) {
-                particles.splice(0, 8);
-            }
-        });
-
-        function animateWeb() {
-            ctx.clearRect(0, 0, width, height);
-            
-            for (let i = 0; i < particles.length; i++) {
-                particles[i].update();
-                particles[i].draw();
-                
-                // Connect particles to each other
-                for (let j = i; j < particles.length; j++) {
-                    let dx = particles[i].x - particles[j].x;
-                    let dy = particles[i].y - particles[j].y;
-                    let dist = Math.sqrt(dx*dx + dy*dy);
-                    
-                    if (dist < 120) {
-                        ctx.beginPath();
-                        ctx.strokeStyle = `rgba(57, 255, 20, ${1 - dist/120})`;
-                        ctx.lineWidth = 0.5;
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.stroke();
-                    }
-                }
-                
-                // Connect particles to mouse
-                if (mouse.x != null) {
-                    let dx = particles[i].x - mouse.x;
-                    let dy = particles[i].y - mouse.y;
-                    let dist = Math.sqrt(dx*dx + dy*dy);
-                    if (dist < 150) {
-                        ctx.beginPath();
-                        ctx.strokeStyle = `rgba(57, 255, 20, ${1 - dist/150})`;
-                        ctx.lineWidth = 1;
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(mouse.x, mouse.y);
-                        ctx.stroke();
-                    }
-                }
-            }
-            requestAnimationFrame(animateWeb);
-        }
-        animateWeb();
-        
 /* =========================================
    BOOT SEQUENCE & RANDOM AUDIO LOGIC
 ========================================= */
@@ -361,14 +329,71 @@ const bootScreen = document.getElementById('boot-screen');
 const mainContent = document.getElementById('main-content');
 const edgeVisualizer = document.getElementById('edge-glow-visualizer');
 
-// Setup the playlist
-const playlist = ['audio1.mp3', 'audio2.mp3', 'audio3.mp3'];
-// Pick one at random immediately
-const randomSong = playlist[Math.floor(Math.random() * playlist.length)];
+// Setup Audio variables globally but don't define them yet
+let siteAudio = null;
+let audioContext = null;
+let analyser = null;
+let dataArray = null;
+let isAudioSetup = false;
 
-const siteAudio = new Audio(randomSong);
-siteAudio.loop = true; 
-siteAudio.volume = 0.05; 
+const playlist = ['audio1.mp3', 'audio2.mp3', 'audio3.mp3'];
+
+initBtn.addEventListener('click', () => {
+    // 1. Pick and Load the song ONLY after click
+    const randomSong = playlist[Math.floor(Math.random() * playlist.length)];
+    siteAudio = new Audio(randomSong);
+    siteAudio.loop = true; 
+    siteAudio.volume = 0.05; // Set to a chill 5% volume
+    
+    // 2. Hide Init Screen
+    initScreen.style.opacity = '0';
+    
+    // 3. Initialize Visualizer
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    setupAudioAnalyser();
+
+    setTimeout(() => {
+        initScreen.style.display = 'none';
+        bootScreen.style.display = 'flex';
+        advanceBoot();
+    }, 300);
+});
+
+function setupAudioAnalyser() {
+    if (!audioContext || isAudioSetup || !siteAudio) return;
+
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256; 
+    siteAudio.crossOrigin = "anonymous"; 
+
+    const source = audioContext.createMediaElementSource(siteAudio);
+    source.connect(analyser);
+    analyser.connect(audioContext.destination);
+
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+    isAudioSetup = true;
+}
+
+function detectBeat() {
+    if (!analyser || !dataArray) return;
+    analyser.getByteFrequencyData(dataArray);
+
+    let sumBass = 0;
+    for (let i = 0; i < 12; i++) {
+        sumBass += dataArray[i];
+    }
+    const averageBass = sumBass / 12; 
+
+    let intensity = (averageBass - 30) / 200; 
+    if (intensity < 0) intensity = 0;
+    if (intensity > 1) intensity = 1;
+
+    const spread = 10 + (intensity * 120); 
+    const alpha = 0.1 + (intensity * 0.7); 
+
+    edgeVisualizer.style.boxShadow = `inset 0 0 ${spread}px rgba(57, 255, 20, ${alpha}), 0 0 ${spread}px rgba(57, 255, 20, ${alpha})`;
+    requestAnimationFrame(detectBeat);
+}
 
 const bootSequence = [
     "INIT ROOT PROCESS...",
@@ -382,69 +407,9 @@ const bootSequence = [
     "ACCESS GRANTED."
 ];
 
-const spinnerFrames = ['/', '-', '\\', '|'];
 let lineIndex = 0;
 let spinnerInterval = null;
-
-let audioContext = null;
-let analyser = null;
-let dataArray = null;
-let isAudioSetup = false;
-
-initBtn.addEventListener('click', () => {
-    initScreen.style.opacity = '0';
-    
-    // Log which song was chosen to the console (F12) for testing
-    console.log("Loading sequence with: " + randomSong);
-
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    setupAudioAnalyser();
-
-    setTimeout(() => {
-        initScreen.style.display = 'none';
-        bootScreen.style.display = 'flex';
-        advanceBoot();
-    }, 300);
-});
-
-function setupAudioAnalyser() {
-    if (!audioContext || isAudioSetup) return;
-
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256; 
-    siteAudio.crossOrigin = "anonymous"; 
-
-    const source = audioContext.createMediaElementSource(siteAudio);
-    source.connect(analyser);
-    analyser.connect(audioContext.destination);
-
-    const bufferLength = analyser.frequencyBinCount;
-    dataArray = new Uint8Array(bufferLength);
-
-    isAudioSetup = true;
-}
-
-function detectBeat() {
-    if (!analyser || !dataArray) return;
-    analyser.getByteFrequencyData(dataArray);
-
-    let sumBass = 0;
-    const bassBins = 12; 
-    for (let i = 0; i < bassBins; i++) {
-        sumBass += dataArray[i];
-    }
-    const averageBass = sumBass / bassBins; 
-
-    let intensity = (averageBass - 30) / 200; 
-    if (intensity < 0) intensity = 0;
-    if (intensity > 1) intensity = 1;
-
-    const spread = 10 + (intensity * 120); 
-    const alpha = 0.1 + (intensity * 0.7); 
-
-    edgeVisualizer.style.boxShadow = `inset 0 0 ${spread}px rgba(57, 255, 20, ${alpha}), 0 0 ${spread}px rgba(57, 255, 20, ${alpha})`;
-    requestAnimationFrame(detectBeat);
-}
+const spinnerFrames = ['/', '-', '\\', '|'];
 
 function advanceBoot() {
     if (lineIndex < bootSequence.length) {
@@ -454,29 +419,25 @@ function advanceBoot() {
         
         let spinnerIndex = 0;
         clearInterval(spinnerInterval);
-        
         spinnerInterval = setInterval(() => {
             newLine.textContent = `${bootSequence[lineIndex]} ${spinnerFrames[spinnerIndex]}`;
             spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
         }, 50);
 
         const nextDelay = Math.floor(Math.random() * 300) + 150; 
-        
         setTimeout(() => {
             clearInterval(spinnerInterval);
             newLine.textContent = bootSequence[lineIndex]; 
             lineIndex++;
             advanceBoot();
         }, nextDelay);
-        
     } else {
         siteAudio.play().then(() => {
             detectBeat(); 
-        }).catch(err => console.log("Audio failed to play:", err));
+        }).catch(err => console.log("Audio play blocked", err));
 
         setTimeout(() => {
             bootScreen.style.opacity = '0';
-            
             setTimeout(() => {
                 bootScreen.style.display = 'none';
                 edgeVisualizer.style.opacity = '1'; 
