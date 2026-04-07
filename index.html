@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>sick.ly</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
     <style>
         :root {
             --bg-color: #030303;
@@ -20,7 +25,8 @@
         body {
             background-color: var(--bg-color);
             color: var(--term-green);
-            font-family: 'Courier New', Courier, monospace;
+            /* Applied the custom font here */
+            font-family: 'Share Tech Mono', 'Courier New', Courier, monospace;
             overflow: hidden;
             display: flex;
             justify-content: center;
@@ -45,27 +51,21 @@
             pointer-events: none;
         }
 
-        /* Terminal Boot Screen - Moved to Top Left */
+        /* Terminal Boot Screen */
         #boot-screen {
             position: absolute;
             top: 25px;
             left: 25px;
             z-index: 10;
+            display: flex;
+            flex-direction: column; /* This makes the lines stack down */
+            transition: opacity 1s ease-out;
         }
 
         .log-line {
-            position: absolute;
-            top: 0;
-            left: 0;
-            white-space: nowrap;
             font-size: 14px;
             text-shadow: var(--term-glow);
-            opacity: 0;
-            transition: opacity 1s ease-in-out; /* Smooth crossfade */
-        }
-
-        .log-line.active {
-            opacity: 1;
+            margin-bottom: 4px; /* Adds a tiny gap between the stacked lines */
         }
 
         /* Main Site Content */
@@ -75,11 +75,14 @@
             z-index: 5;
             transform: scale(0.95);
             transition: opacity 2s ease, transform 2s ease;
+            /* Hide initially so it doesn't block clicks */
+            pointer-events: none; 
         }
 
         #main-content.visible {
             opacity: 1;
             transform: scale(1);
+            pointer-events: auto; /* Make buttons clickable after it appears */
         }
 
         h1 {
@@ -173,10 +176,10 @@
         
         const bootSequence = [
             "INIT ROOT PROCESS...",
-            "LOADING KERNEL MODULES [OK]",
-            "MOUNTING VFS: /dev/sda1 [OK]",
+            "LOADING KERNEL MODULES...",
+            "MOUNTING VFS: /dev/sda1...",
             "STARTING NETWORK DAEMON...",
-            "RESOLVING HOST: sick.ly",
+            "RESOLVING HOST: sick.ly...",
             "ESTABLISHING SECURE CONNECTION...",
             "HANDSHAKE SUCCESSFUL.",
             "DECRYPTING PAYLOAD...",
@@ -187,19 +190,13 @@
         const spinnerFrames = ['/', '-', '\\', '|'];
         
         let lineIndex = 0;
-        let activeLineElement = null;
         let spinnerInterval = null;
 
         function advanceBoot() {
-            // Fade out the previous line if it exists
-            if (activeLineElement) {
-                activeLineElement.classList.remove('active');
-            }
-
             // If we still have lines left to print
             if (lineIndex < bootSequence.length) {
                 const newLine = document.createElement('div');
-                newLine.className = 'log-line active';
+                newLine.className = 'log-line';
                 bootScreen.appendChild(newLine);
                 
                 let spinnerIndex = 0;
@@ -207,27 +204,36 @@
                 // Clear any old intervals just in case
                 clearInterval(spinnerInterval);
                 
-                // Run the spinner animation
+                // Run the spinner animation on the right side without brackets
                 spinnerInterval = setInterval(() => {
-                    newLine.textContent = `[${spinnerFrames[spinnerIndex]}] ${bootSequence[lineIndex]}`;
+                    newLine.textContent = `${bootSequence[lineIndex]} ${spinnerFrames[spinnerIndex]}`;
                     spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
                 }, 100);
 
-                activeLineElement = newLine;
-                lineIndex++;
-                
                 // Slower random delay between 1.2 and 2.2 seconds per line
                 const nextDelay = Math.floor(Math.random() * 1000) + 1200;
-                setTimeout(advanceBoot, nextDelay);
+                
+                setTimeout(() => {
+                    // Stop the spinner and lock in the text before moving to the next line
+                    clearInterval(spinnerInterval);
+                    newLine.textContent = bootSequence[lineIndex]; // Removes the spinning character
+                    
+                    lineIndex++;
+                    advanceBoot();
+                }, nextDelay);
                 
             } else {
                 // Boot sequence finished
-                clearInterval(spinnerInterval);
                 
-                // Wait just a second for the final fade out, then show the main site
+                // Wait just a second, fade out the terminal, then show the main site
                 setTimeout(() => {
-                    mainContent.classList.add('visible');
-                }, 1000);
+                    bootScreen.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        bootScreen.style.display = 'none';
+                        mainContent.classList.add('visible');
+                    }, 1000); // Wait for terminal fade out to finish
+                }, 800);
             }
         }
 
