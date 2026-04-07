@@ -25,7 +25,6 @@
         body {
             background-color: var(--bg-color);
             color: var(--term-green);
-            /* Applied the custom font here */
             font-family: 'Share Tech Mono', 'Courier New', Courier, monospace;
             overflow: hidden;
             display: flex;
@@ -51,21 +50,62 @@
             pointer-events: none;
         }
 
+        /* Initialize Screen to bypass Autoplay blockers */
+        #init-screen {
+            position: absolute;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            transition: opacity 0.5s ease;
+        }
+
+        #init-btn {
+            background: none;
+            border: 1px solid var(--term-green);
+            color: var(--term-green);
+            font-family: inherit;
+            font-size: 1.2rem;
+            padding: 15px 30px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: var(--term-glow);
+            transition: all 0.2s ease;
+            animation: pulse 2s infinite;
+        }
+
+        #init-btn:hover {
+            background-color: var(--term-green);
+            color: var(--bg-color);
+            font-weight: bold;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.8; box-shadow: 0 0 5px rgba(57, 255, 20, 0.4); }
+            50% { opacity: 1; box-shadow: 0 0 20px rgba(57, 255, 20, 0.8); }
+            100% { opacity: 0.8; box-shadow: 0 0 5px rgba(57, 255, 20, 0.4); }
+        }
+
         /* Terminal Boot Screen */
         #boot-screen {
             position: absolute;
             top: 25px;
             left: 25px;
             z-index: 10;
-            display: flex;
-            flex-direction: column; /* This makes the lines stack down */
+            display: none; /* Hidden until Init */
+            flex-direction: column;
             transition: opacity 1s ease-out;
         }
 
         .log-line {
             font-size: 14px;
             text-shadow: var(--term-glow);
-            margin-bottom: 4px; /* Adds a tiny gap between the stacked lines */
+            margin-bottom: 4px;
         }
 
         /* Main Site Content */
@@ -75,14 +115,13 @@
             z-index: 5;
             transform: scale(0.95);
             transition: opacity 2s ease, transform 2s ease;
-            /* Hide initially so it doesn't block clicks */
             pointer-events: none; 
         }
 
         #main-content.visible {
             opacity: 1;
             transform: scale(1);
-            pointer-events: auto; /* Make buttons clickable after it appears */
+            pointer-events: auto;
         }
 
         h1 {
@@ -93,7 +132,6 @@
             position: relative;
         }
 
-        /* Blinking Cursor */
         .cursor {
             display: inline-block;
             width: 20px;
@@ -157,6 +195,10 @@
 </head>
 <body>
 
+    <div id="init-screen">
+        <button id="init-btn">[ INITIATE CONNECTION ]</button>
+    </div>
+
     <div id="boot-screen"></div>
 
     <div id="main-content">
@@ -171,8 +213,14 @@
     </div>
 
     <script>
+        const initScreen = document.getElementById('init-screen');
+        const initBtn = document.getElementById('init-btn');
         const bootScreen = document.getElementById('boot-screen');
         const mainContent = document.getElementById('main-content');
+        
+        // Define your audio file here
+        const siteAudio = new Audio('audio.mp3');
+        siteAudio.loop = true; // Optional: change to false if you only want it to play once
         
         const bootSequence = [
             "INIT ROOT PROCESS...",
@@ -186,14 +234,22 @@
             "ACCESS GRANTED."
         ];
 
-        // The loading spinner characters
         const spinnerFrames = ['/', '-', '\\', '|'];
-        
         let lineIndex = 0;
         let spinnerInterval = null;
 
+        // Start the sequence when the user clicks the button
+        initBtn.addEventListener('click', () => {
+            initScreen.style.opacity = '0';
+            
+            setTimeout(() => {
+                initScreen.style.display = 'none';
+                bootScreen.style.display = 'flex';
+                advanceBoot();
+            }, 500);
+        });
+
         function advanceBoot() {
-            // If we still have lines left to print
             if (lineIndex < bootSequence.length) {
                 const newLine = document.createElement('div');
                 newLine.className = 'log-line';
@@ -201,46 +257,40 @@
                 
                 let spinnerIndex = 0;
                 
-                // Clear any old intervals just in case
                 clearInterval(spinnerInterval);
                 
-                // Run the spinner animation on the right side without brackets
                 spinnerInterval = setInterval(() => {
                     newLine.textContent = `${bootSequence[lineIndex]} ${spinnerFrames[spinnerIndex]}`;
                     spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
                 }, 100);
 
-                // Slower random delay between 1.2 and 2.2 seconds per line
                 const nextDelay = Math.floor(Math.random() * 1000) + 1200;
                 
                 setTimeout(() => {
-                    // Stop the spinner and lock in the text before moving to the next line
                     clearInterval(spinnerInterval);
-                    newLine.textContent = bootSequence[lineIndex]; // Removes the spinning character
+                    newLine.textContent = bootSequence[lineIndex]; 
                     
                     lineIndex++;
                     advanceBoot();
                 }, nextDelay);
                 
             } else {
-                // Boot sequence finished
+                // Boot sequence is completely finished
                 
-                // Wait just a second, fade out the terminal, then show the main site
+                // Play the audio!
+                siteAudio.play().catch(err => console.log("Audio failed to play:", err));
+                
+                // Fade out terminal and show main site
                 setTimeout(() => {
                     bootScreen.style.opacity = '0';
                     
                     setTimeout(() => {
                         bootScreen.style.display = 'none';
                         mainContent.classList.add('visible');
-                    }, 1000); // Wait for terminal fade out to finish
+                    }, 1000); 
                 }, 800);
             }
         }
-
-        // Start the boot sequence when the page loads
-        window.onload = () => {
-            setTimeout(advanceBoot, 800);
-        };
     </script>
 </body>
 </html>
