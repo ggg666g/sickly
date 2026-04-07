@@ -351,134 +351,139 @@
             requestAnimationFrame(animateWeb);
         }
         animateWeb();
-
-        /* =========================================
-           BOOT SEQUENCE & AUDIO VISUALIZER LOGIC
-        ========================================= */
-        const initScreen = document.getElementById('init-screen');
-        const initBtn = document.getElementById('init-btn');
-        const bootScreen = document.getElementById('boot-screen');
-        const mainContent = document.getElementById('main-content');
-        const edgeVisualizer = document.getElementById('edge-glow-visualizer');
         
-        const siteAudio = new Audio('audio.mp3');
-        siteAudio.loop = true; 
-        siteAudio.volume = 0.2; 
+/* =========================================
+   BOOT SEQUENCE & RANDOM AUDIO LOGIC
+========================================= */
+const initScreen = document.getElementById('init-screen');
+const initBtn = document.getElementById('init-btn');
+const bootScreen = document.getElementById('boot-screen');
+const mainContent = document.getElementById('main-content');
+const edgeVisualizer = document.getElementById('edge-glow-visualizer');
+
+// Setup the playlist
+const playlist = ['audio1.mp3', 'audio2.mp3', 'audio3.mp3'];
+// Pick one at random immediately
+const randomSong = playlist[Math.floor(Math.random() * playlist.length)];
+
+const siteAudio = new Audio(randomSong);
+siteAudio.loop = true; 
+siteAudio.volume = 0.05; 
+
+const bootSequence = [
+    "INIT ROOT PROCESS...",
+    "LOADING KERNEL MODULES...",
+    "MOUNTING VFS: /dev/sda1...",
+    "STARTING NETWORK DAEMON...",
+    "RESOLVING HOST: sick.ly...",
+    "ESTABLISHING SECURE CONNECTION...",
+    "HANDSHAKE SUCCESSFUL.",
+    "DECRYPTING PAYLOAD...",
+    "ACCESS GRANTED."
+];
+
+const spinnerFrames = ['/', '-', '\\', '|'];
+let lineIndex = 0;
+let spinnerInterval = null;
+
+let audioContext = null;
+let analyser = null;
+let dataArray = null;
+let isAudioSetup = false;
+
+initBtn.addEventListener('click', () => {
+    initScreen.style.opacity = '0';
+    
+    // Log which song was chosen to the console (F12) for testing
+    console.log("Loading sequence with: " + randomSong);
+
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    setupAudioAnalyser();
+
+    setTimeout(() => {
+        initScreen.style.display = 'none';
+        bootScreen.style.display = 'flex';
+        advanceBoot();
+    }, 300);
+});
+
+function setupAudioAnalyser() {
+    if (!audioContext || isAudioSetup) return;
+
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256; 
+    siteAudio.crossOrigin = "anonymous"; 
+
+    const source = audioContext.createMediaElementSource(siteAudio);
+    source.connect(analyser);
+    analyser.connect(audioContext.destination);
+
+    const bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+
+    isAudioSetup = true;
+}
+
+function detectBeat() {
+    if (!analyser || !dataArray) return;
+    analyser.getByteFrequencyData(dataArray);
+
+    let sumBass = 0;
+    const bassBins = 12; 
+    for (let i = 0; i < bassBins; i++) {
+        sumBass += dataArray[i];
+    }
+    const averageBass = sumBass / bassBins; 
+
+    let intensity = (averageBass - 30) / 200; 
+    if (intensity < 0) intensity = 0;
+    if (intensity > 1) intensity = 1;
+
+    const spread = 10 + (intensity * 120); 
+    const alpha = 0.1 + (intensity * 0.7); 
+
+    edgeVisualizer.style.boxShadow = `inset 0 0 ${spread}px rgba(57, 255, 20, ${alpha}), 0 0 ${spread}px rgba(57, 255, 20, ${alpha})`;
+    requestAnimationFrame(detectBeat);
+}
+
+function advanceBoot() {
+    if (lineIndex < bootSequence.length) {
+        const newLine = document.createElement('div');
+        newLine.className = 'log-line';
+        bootScreen.appendChild(newLine);
         
-        const bootSequence = [
-            "INIT ROOT PROCESS...",
-            "LOADING KERNEL MODULES...",
-            "MOUNTING VFS: /dev/sda1...",
-            "STARTING NETWORK DAEMON...",
-            "RESOLVING HOST: sick.ly...",
-            "ESTABLISHING SECURE CONNECTION...",
-            "HANDSHAKE SUCCESSFUL.",
-            "DECRYPTING PAYLOAD...",
-            "ACCESS GRANTED."
-        ];
+        let spinnerIndex = 0;
+        clearInterval(spinnerInterval);
+        
+        spinnerInterval = setInterval(() => {
+            newLine.textContent = `${bootSequence[lineIndex]} ${spinnerFrames[spinnerIndex]}`;
+            spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
+        }, 50);
 
-        const spinnerFrames = ['/', '-', '\\', '|'];
-        let lineIndex = 0;
-        let spinnerInterval = null;
+        const nextDelay = Math.floor(Math.random() * 300) + 150; 
+        
+        setTimeout(() => {
+            clearInterval(spinnerInterval);
+            newLine.textContent = bootSequence[lineIndex]; 
+            lineIndex++;
+            advanceBoot();
+        }, nextDelay);
+        
+    } else {
+        siteAudio.play().then(() => {
+            detectBeat(); 
+        }).catch(err => console.log("Audio failed to play:", err));
 
-        let audioContext = null;
-        let analyser = null;
-        let dataArray = null;
-        let isAudioSetup = false;
-
-        initBtn.addEventListener('click', () => {
-            initScreen.style.opacity = '0';
+        setTimeout(() => {
+            bootScreen.style.opacity = '0';
             
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            setupAudioAnalyser();
-
             setTimeout(() => {
-                initScreen.style.display = 'none';
-                bootScreen.style.display = 'flex';
-                advanceBoot();
-            }, 300);
-        });
-
-        function setupAudioAnalyser() {
-            if (!audioContext || isAudioSetup) return;
-
-            analyser = audioContext.createAnalyser();
-            analyser.fftSize = 256; 
-            siteAudio.crossOrigin = "anonymous"; 
-
-            const source = audioContext.createMediaElementSource(siteAudio);
-            source.connect(analyser);
-            analyser.connect(audioContext.destination);
-
-            const bufferLength = analyser.frequencyBinCount;
-            dataArray = new Uint8Array(bufferLength);
-
-            isAudioSetup = true;
-        }
-
-        function detectBeat() {
-            if (!analyser || !dataArray) return;
-
-            analyser.getByteFrequencyData(dataArray);
-
-            let sumBass = 0;
-            const bassBins = 12; 
-            for (let i = 0; i < bassBins; i++) {
-                sumBass += dataArray[i];
-            }
-            const averageBass = sumBass / bassBins; 
-
-            let intensity = (averageBass - 30) / 200; 
-            if (intensity < 0) intensity = 0;
-            if (intensity > 1) intensity = 1;
-
-            const spread = 10 + (intensity * 120); 
-            const alpha = 0.1 + (intensity * 0.7); 
-
-            edgeVisualizer.style.boxShadow = `inset 0 0 ${spread}px rgba(57, 255, 20, ${alpha}), 0 0 ${spread}px rgba(57, 255, 20, ${alpha})`;
-
-            requestAnimationFrame(detectBeat);
-        }
-
-        function advanceBoot() {
-            if (lineIndex < bootSequence.length) {
-                const newLine = document.createElement('div');
-                newLine.className = 'log-line';
-                bootScreen.appendChild(newLine);
-                
-                let spinnerIndex = 0;
-                clearInterval(spinnerInterval);
-                
-                spinnerInterval = setInterval(() => {
-                    newLine.textContent = `${bootSequence[lineIndex]} ${spinnerFrames[spinnerIndex]}`;
-                    spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
-                }, 50);
-
-                const nextDelay = Math.floor(Math.random() * 300) + 150; 
-                
-                setTimeout(() => {
-                    clearInterval(spinnerInterval);
-                    newLine.textContent = bootSequence[lineIndex]; 
-                    lineIndex++;
-                    advanceBoot();
-                }, nextDelay);
-                
-            } else {
-                siteAudio.play().then(() => {
-                    detectBeat(); 
-                }).catch(err => console.log("Audio failed to play:", err));
-
-                setTimeout(() => {
-                    bootScreen.style.opacity = '0';
-                    
-                    setTimeout(() => {
-                        bootScreen.style.display = 'none';
-                        edgeVisualizer.style.opacity = '1'; 
-                        mainContent.classList.add('visible');
-                    }, 500);
-                }, 400); 
-            }
-        }
-    </script>
+                bootScreen.style.display = 'none';
+                edgeVisualizer.style.opacity = '1'; 
+                mainContent.classList.add('visible');
+            }, 500);
+        }, 400); 
+    }
+}
 </body>
 </html>
