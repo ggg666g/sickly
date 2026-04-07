@@ -99,13 +99,13 @@
             z-index: 10;
             display: none; /* Hidden until Init */
             flex-direction: column;
-            transition: opacity 1s ease-out;
+            transition: opacity 0.5s ease-out; /* Sped up fade out */
         }
 
         .log-line {
-            font-size: 14px;
+            font-size: 20px; /* MADE TEXT LARGER */
             text-shadow: var(--term-glow);
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
 
         /* Main Site Content */
@@ -189,7 +189,7 @@
             .socials { flex-direction: column; gap: 15px; align-items: center; }
             .social-btn { width: 200px; }
             #boot-screen { top: 15px; left: 15px; }
-            .log-line { font-size: 12px; }
+            .log-line { font-size: 16px; } /* MADE MOBILE TEXT LARGER */
         }
     </style>
 </head>
@@ -220,7 +220,8 @@
         
         // Define your audio file here
         const siteAudio = new Audio('audio.mp3');
-        siteAudio.loop = true; // Optional: change to false if you only want it to play once
+        siteAudio.loop = true; 
+        siteAudio.volume = 0.2; // LOWERED VOLUME TO 20%
         
         const bootSequence = [
             "INIT ROOT PROCESS...",
@@ -246,7 +247,7 @@
                 initScreen.style.display = 'none';
                 bootScreen.style.display = 'flex';
                 advanceBoot();
-            }, 500);
+            }, 300); // Sped up init transition
         });
 
         function advanceBoot() {
@@ -259,12 +260,14 @@
                 
                 clearInterval(spinnerInterval);
                 
+                // Keep spinner moving fast
                 spinnerInterval = setInterval(() => {
                     newLine.textContent = `${bootSequence[lineIndex]} ${spinnerFrames[spinnerIndex]}`;
                     spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
-                }, 100);
+                }, 50); // Sped up spinner
 
-                const nextDelay = Math.floor(Math.random() * 1000) + 1200;
+                // FASTER random delay between 0.15 and 0.45 seconds per line
+                const nextDelay = Math.floor(Math.random() * 300) + 150; 
                 
                 setTimeout(() => {
                     clearInterval(spinnerInterval);
@@ -287,8 +290,8 @@
                     setTimeout(() => {
                         bootScreen.style.display = 'none';
                         mainContent.classList.add('visible');
-                    }, 1000); 
-                }, 800);
+                    }, 500); // Sped up final transition
+                }, 400); // Sped up hold before fade
             }
         }
     </script>
