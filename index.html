@@ -45,26 +45,27 @@
             pointer-events: none;
         }
 
-        /* Terminal Boot Screen */
+        /* Terminal Boot Screen - Moved to Top Left */
         #boot-screen {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            width: calc(100% - 40px);
-            height: calc(100% - 40px);
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
+            top: 25px;
+            left: 25px;
             z-index: 10;
-            transition: opacity 0.8s ease-out;
         }
 
         .log-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            white-space: nowrap;
             font-size: 14px;
-            line-height: 1.5;
             text-shadow: var(--term-glow);
-            opacity: 0.8;
-            margin-bottom: 4px;
+            opacity: 0;
+            transition: opacity 1s ease-in-out; /* Smooth crossfade */
+        }
+
+        .log-line.active {
+            opacity: 1;
         }
 
         /* Main Site Content */
@@ -72,7 +73,6 @@
             opacity: 0;
             text-align: center;
             z-index: 5;
-            transition: opacity 1.5s ease-in;
             transform: scale(0.95);
             transition: opacity 2s ease, transform 2s ease;
         }
@@ -90,7 +90,7 @@
             position: relative;
         }
 
-        /* Blinking Cursor for the edgy vibe */
+        /* Blinking Cursor */
         .cursor {
             display: inline-block;
             width: 20px;
@@ -107,16 +107,47 @@
             50% { opacity: 0; }
         }
 
-        /* Subtext */
         p.subtitle {
             margin-top: 10px;
-            font-size: 1rem;
-            opacity: 0.6;
+            font-size: 1.2rem;
+            opacity: 0.8;
             text-shadow: var(--term-glow);
+        }
+
+        /* Sleek Social Buttons */
+        .socials {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 40px;
+        }
+
+        .social-btn {
+            color: var(--term-green);
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 10px 20px;
+            border: 1px solid var(--term-green);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 5px rgba(57, 255, 20, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .social-btn:hover {
+            background-color: var(--term-green);
+            color: var(--bg-color);
+            box-shadow: var(--term-glow);
+            font-weight: bold;
         }
 
         @media (max-width: 600px) {
             h1 { font-size: 3.5rem; }
+            .socials { flex-direction: column; gap: 15px; align-items: center; }
+            .social-btn { width: 200px; }
+            #boot-screen { top: 15px; left: 15px; }
             .log-line { font-size: 12px; }
         }
     </style>
@@ -127,14 +158,19 @@
 
     <div id="main-content">
         <h1>sick.ly<span class="cursor"></span></h1>
-        <p class="subtitle">// void</p>
+        <p class="subtitle">// graham</p>
+        
+        <div class="socials">
+            <a href="https://discord.com/users/947924966769328158" class="social-btn" target="_blank">Discord</a>
+            <a href="https://t.me/arerosesred" class="social-btn" target="_blank">Telegram</a>
+            <a href="https://www.instagram.com/graham2tired" class="social-btn" target="_blank">Instagram</a>
+        </div>
     </div>
 
     <script>
         const bootScreen = document.getElementById('boot-screen');
         const mainContent = document.getElementById('main-content');
         
-        // The fake terminal commands that will print out
         const bootSequence = [
             "INIT ROOT PROCESS...",
             "LOADING KERNEL MODULES [OK]",
@@ -147,37 +183,57 @@
             "ACCESS GRANTED."
         ];
 
+        // The loading spinner characters
+        const spinnerFrames = ['/', '-', '\\', '|'];
+        
         let lineIndex = 0;
+        let activeLineElement = null;
+        let spinnerInterval = null;
 
-        function printLogLine() {
+        function advanceBoot() {
+            // Fade out the previous line if it exists
+            if (activeLineElement) {
+                activeLineElement.classList.remove('active');
+            }
+
+            // If we still have lines left to print
             if (lineIndex < bootSequence.length) {
-                // Create a new div for the line
-                const line = document.createElement('div');
-                line.className = 'log-line';
-                line.textContent = `> ${bootSequence[lineIndex]}`;
-                bootScreen.appendChild(line);
+                const newLine = document.createElement('div');
+                newLine.className = 'log-line active';
+                bootScreen.appendChild(newLine);
                 
+                let spinnerIndex = 0;
+                
+                // Clear any old intervals just in case
+                clearInterval(spinnerInterval);
+                
+                // Run the spinner animation
+                spinnerInterval = setInterval(() => {
+                    newLine.textContent = `[${spinnerFrames[spinnerIndex]}] ${bootSequence[lineIndex]}`;
+                    spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
+                }, 100);
+
+                activeLineElement = newLine;
                 lineIndex++;
                 
-                // Randomize the typing speed to make it feel like a real computer processing
-                const nextDelay = Math.floor(Math.random() * 300) + 100;
-                setTimeout(printLogLine, nextDelay);
+                // Slower random delay between 1.2 and 2.2 seconds per line
+                const nextDelay = Math.floor(Math.random() * 1000) + 1200;
+                setTimeout(advanceBoot, nextDelay);
+                
             } else {
-                // Once the sequence is done, wait a second, then transition
+                // Boot sequence finished
+                clearInterval(spinnerInterval);
+                
+                // Wait just a second for the final fade out, then show the main site
                 setTimeout(() => {
-                    bootScreen.style.opacity = '0';
-                    
-                    setTimeout(() => {
-                        bootScreen.style.display = 'none';
-                        mainContent.classList.add('visible');
-                    }, 800); // Wait for the fade out to finish
-                }, 600);
+                    mainContent.classList.add('visible');
+                }, 1000);
             }
         }
 
         // Start the boot sequence when the page loads
         window.onload = () => {
-            setTimeout(printLogLine, 500);
+            setTimeout(advanceBoot, 800);
         };
     </script>
 </body>
