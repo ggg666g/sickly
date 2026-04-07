@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sick.ly</title>
+    <style>
+        :root {
+            --bg-color: #030303;
+            --term-green: #39ff14;
+            --term-glow: 0 0 5px rgba(57, 255, 20, 0.4), 0 0 10px rgba(57, 255, 20, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--term-green);
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        /* CRT Scanline Effect */
+        body::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* Terminal Boot Screen */
+        #boot-screen {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: calc(100% - 40px);
+            height: calc(100% - 40px);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            z-index: 10;
+            transition: opacity 0.8s ease-out;
+        }
+
+        .log-line {
+            font-size: 14px;
+            line-height: 1.5;
+            text-shadow: var(--term-glow);
+            opacity: 0.8;
+            margin-bottom: 4px;
+        }
+
+        /* Main Site Content */
+        #main-content {
+            opacity: 0;
+            text-align: center;
+            z-index: 5;
+            transition: opacity 1.5s ease-in;
+            transform: scale(0.95);
+            transition: opacity 2s ease, transform 2s ease;
+        }
+
+        #main-content.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        h1 {
+            font-size: 5rem;
+            font-weight: normal;
+            letter-spacing: -2px;
+            text-shadow: 0 0 10px rgba(57, 255, 20, 0.5), 0 0 20px rgba(57, 255, 20, 0.3);
+            position: relative;
+        }
+
+        /* Blinking Cursor for the edgy vibe */
+        .cursor {
+            display: inline-block;
+            width: 20px;
+            height: 1em;
+            background-color: var(--term-green);
+            vertical-align: bottom;
+            animation: blink 1s step-end infinite;
+            margin-left: 5px;
+            box-shadow: var(--term-glow);
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Subtext */
+        p.subtitle {
+            margin-top: 10px;
+            font-size: 1rem;
+            opacity: 0.6;
+            text-shadow: var(--term-glow);
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 3.5rem; }
+            .log-line { font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="boot-screen"></div>
+
+    <div id="main-content">
+        <h1>sick.ly<span class="cursor"></span></h1>
+        <p class="subtitle">// void</p>
+    </div>
+
+    <script>
+        const bootScreen = document.getElementById('boot-screen');
+        const mainContent = document.getElementById('main-content');
+        
+        // The fake terminal commands that will print out
+        const bootSequence = [
+            "INIT ROOT PROCESS...",
+            "LOADING KERNEL MODULES [OK]",
+            "MOUNTING VFS: /dev/sda1 [OK]",
+            "STARTING NETWORK DAEMON...",
+            "RESOLVING HOST: sick.ly",
+            "ESTABLISHING SECURE CONNECTION...",
+            "HANDSHAKE SUCCESSFUL.",
+            "DECRYPTING PAYLOAD...",
+            "ACCESS GRANTED."
+        ];
+
+        let lineIndex = 0;
+
+        function printLogLine() {
+            if (lineIndex < bootSequence.length) {
+                // Create a new div for the line
+                const line = document.createElement('div');
+                line.className = 'log-line';
+                line.textContent = `> ${bootSequence[lineIndex]}`;
+                bootScreen.appendChild(line);
+                
+                lineIndex++;
+                
+                // Randomize the typing speed to make it feel like a real computer processing
+                const nextDelay = Math.floor(Math.random() * 300) + 100;
+                setTimeout(printLogLine, nextDelay);
+            } else {
+                // Once the sequence is done, wait a second, then transition
+                setTimeout(() => {
+                    bootScreen.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        bootScreen.style.display = 'none';
+                        mainContent.classList.add('visible');
+                    }, 800); // Wait for the fade out to finish
+                }, 600);
+            }
+        }
+
+        // Start the boot sequence when the page loads
+        window.onload = () => {
+            setTimeout(printLogLine, 500);
+        };
+    </script>
+</body>
+</html>
