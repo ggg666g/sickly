@@ -1,10 +1,16 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>sick.ly</title>
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    
+    <meta name="description" content="[A cool page made by graham]">
+    <meta property="og:title" content="sick.ly">
+    <meta property="og:description" content="[A landing page made by graham]">
+    <meta property="og:image" content="[LINK TO A SCREENSHOT OF YOUR SITE, e.g., https://sick.ly/sickly.png]">
+    <meta property="og:url" content="https://sick.ly">
+    <meta name="theme-color" content="#39ff14"> <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
@@ -14,6 +20,11 @@
             --term-green: #39ff14;
             --term-glow: 0 0 5px rgba(57, 255, 20, 0.4), 0 0 10px rgba(57, 255, 20, 0.2);
         }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: var(--term-green); border-radius: 10px; }
 
         * {
             margin: 0;
@@ -40,8 +51,8 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 0;
-            pointer-events: none;
+            z-index: 0; 
+            pointer-events: none; 
         }
 
         #edge-glow-visualizer {
@@ -50,9 +61,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 1;
-            pointer-events: none;
-            opacity: 0;
+            z-index: 1; 
+            pointer-events: none; 
+            opacity: 0; 
         }
 
         body::after {
@@ -64,7 +75,7 @@
             bottom: 0;
             right: 0;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 2;
+            z-index: 2; 
             background-size: 100% 2px, 3px 100%;
             pointer-events: none;
         }
@@ -129,7 +140,7 @@
             z-index: 5;
             transform: scale(0.95);
             transition: opacity 2s ease, transform 2s ease;
-            pointer-events: none;
+            pointer-events: none; 
         }
 
         #main-content.visible {
@@ -218,7 +229,7 @@
     <div id="boot-screen"></div>
 
     <div id="main-content">
-        <h1>sick.ly<span class="cursor"></span></h1>
+        <h1><span id="hacker-text">sick.ly</span><span class="cursor"></span></h1>
         <p class="subtitle">// graham</p>
         
         <div class="socials">
@@ -229,247 +240,247 @@
     </div>
 
     <script>
-    /* =========================================
-       SPIDER WEB BACKGROUND LOGIC
-    ========================================= */
-    const canvas = document.getElementById('web-canvas');
-    const ctx = canvas.getContext('2d');
-    let width, height;
-    let particles = [];
-    const mouse = { x: null, y: null };
-    const MOUSE_RADIUS = 150; // how close a particle needs to be to connect to the mouse
+        /* =========================================
+           SPIDER WEB BACKGROUND LOGIC (MOBILE FIXED)
+        ========================================= */
+        const canvas = document.getElementById('web-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let particles = [];
+        const mouse = { x: null, y: null };
 
-    function resizeCanvas() {
-        width = canvas.width = window.innerWidth;
-        height = canvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    class Particle {
-        constructor(x, y, isClick) {
-            this.x = x || Math.random() * width;
-            this.y = y || Math.random() * height;
-            let speed = isClick ? (Math.random() * 4 + 1) : 0.5;
-            this.vx = (Math.random() - 0.5) * speed;
-            this.vy = (Math.random() - 0.5) * speed;
-            this.radius = 1.5;
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
         }
-        update() {
-            if (Math.abs(this.vx) > 0.5) this.vx *= 0.98;
-            if (Math.abs(this.vy) > 0.5) this.vy *= 0.98;
-            this.x += this.vx;
-            this.y += this.vy;
-            if (this.x < 0 || this.x > width) this.vx *= -1;
-            if (this.y < 0 || this.y > height) this.vy *= -1;
-        }
-        draw() {
-            ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
 
-    const particleCount = window.innerWidth < 600 ? 40 : 80;
-    for (let i = 0; i < particleCount; i++) {
-        particles.push(new Particle());
-    }
-
-    window.addEventListener('mousemove', e => {
-        mouse.x = e.x;
-        mouse.y = e.y;
-    });
-
-    // Clear mouse position when it leaves the window
-    window.addEventListener('mouseleave', () => {
-        mouse.x = null;
-        mouse.y = null;
-    });
-
-    window.addEventListener('click', e => {
-        for (let i = 0; i < 8; i++) {
-            particles.push(new Particle(e.x, e.y, true));
-        }
-        if (particles.length > 150) {
-            particles.splice(0, 8);
-        }
-    });
-
-    function animateWeb() {
-        ctx.clearRect(0, 0, width, height);
-
-        for (let i = 0; i < particles.length; i++) {
-            particles[i].update();
-            particles[i].draw();
-
-            // Particle-to-particle connections
-            for (let j = i + 1; j < particles.length; j++) {
-                let dx = particles[i].x - particles[j].x;
-                let dy = particles[i].y - particles[j].y;
-                let dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 120) {
-                    ctx.beginPath();
-                    ctx.strokeStyle = `rgba(57, 255, 20, ${1 - dist / 120})`;
-                    ctx.lineWidth = 0.5;
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(particles[j].x, particles[j].y);
-                    ctx.stroke();
-                }
+        class Particle {
+            constructor(x, y, isClick) {
+                this.x = x || Math.random() * width;
+                this.y = y || Math.random() * height;
+                let speed = isClick ? (Math.random() * 4 + 1) : 0.5;
+                this.vx = (Math.random() - 0.5) * speed;
+                this.vy = (Math.random() - 0.5) * speed;
+                this.radius = 1.5;
             }
-
-            // Particle-to-mouse connections
-            if (mouse.x !== null && mouse.y !== null) {
-                let mdx = particles[i].x - mouse.x;
-                let mdy = particles[i].y - mouse.y;
-                let mouseDist = Math.sqrt(mdx * mdx + mdy * mdy);
-                if (mouseDist < MOUSE_RADIUS) {
-                    let alpha = (1 - mouseDist / MOUSE_RADIUS) * 0.9;
-                    ctx.beginPath();
-                    ctx.strokeStyle = `rgba(57, 255, 20, ${alpha})`;
-                    ctx.lineWidth = 0.8;
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(mouse.x, mouse.y);
-                    ctx.stroke();
-                }
+            update() {
+                if (Math.abs(this.vx) > 0.5) this.vx *= 0.98;
+                if (Math.abs(this.vy) > 0.5) this.vy *= 0.98;
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+            }
+            draw() {
+                ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
 
-        requestAnimationFrame(animateWeb);
-    }
-    animateWeb();
+        const particleCount = window.innerWidth < 600 ? 40 : 80;
+        for(let i = 0; i < particleCount; i++) {
+            particles.push(new Particle());
+        }
 
-    /* =========================================
-       BOOT SEQUENCE & AUDIO LOGIC
-    ========================================= */
-    const initScreen = document.getElementById('init-screen');
-    const initBtn = document.getElementById('init-btn');
-    const bootScreen = document.getElementById('boot-screen');
-    const mainContent = document.getElementById('main-content');
-    const edgeVisualizer = document.getElementById('edge-glow-visualizer');
+        // MOUSE AND TOUCH TRACKING
+        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener('touchmove', e => { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; });
+        window.addEventListener('mouseout', () => { mouse.x = null; mouse.y = null; });
+        window.addEventListener('touchend', () => { mouse.x = null; mouse.y = null; });
 
-    let siteAudio = null;
-    let audioContext = null;
-    let analyser = null;
-    let dataArray = null;
-    let isAudioSetup = false;
+        // MOUSE AND TOUCH CLICK SPAWNER
+        function spawnWebs(x, y) {
+            for(let i = 0; i < 8; i++) { particles.push(new Particle(x, y, true)); }
+            if(particles.length > 150) { particles.splice(0, 8); }
+        }
+        window.addEventListener('click', e => spawnWebs(e.clientX, e.clientY));
+        window.addEventListener('touchstart', e => spawnWebs(e.touches[0].clientX, e.touches[0].clientY));
 
-    const playlist = ['audio1.mp3', 'audio2.mp3', 'audio3.mp3'];
+        function animateWeb() {
+            ctx.clearRect(0, 0, width, height);
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+                for (let j = i; j < particles.length; j++) {
+                    let dx = particles[i].x - particles[j].x;
+                    let dy = particles[i].y - particles[j].y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 120) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(57, 255, 20, ${1 - dist/120})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+                if (mouse.x != null) {
+                    let dx = particles[i].x - mouse.x;
+                    let dy = particles[i].y - mouse.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 150) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(57, 255, 20, ${1 - dist/150})`;
+                        ctx.lineWidth = 1;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(mouse.x, mouse.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animateWeb);
+        }
+        animateWeb();
 
-    initBtn.addEventListener('click', () => {
-        const randomSong = playlist[Math.floor(Math.random() * playlist.length)];
+        /* =========================================
+           HACKER TEXT RANDOMIZER LOGIC
+        ========================================= */
+        const hackerText = document.getElementById('hacker-text');
+        const nameList = ['sick.ly', 'graham', 'WoRrY', 'WrY.RiP', 'g.rich'];
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*";
+        let currentNameIndex = 0;
 
-        // FIX: Set crossOrigin BEFORE setting src so the browser
-        // sends the CORS request header from the very first load
-        siteAudio = new Audio();
-        siteAudio.crossOrigin = "anonymous";
-        siteAudio.src = randomSong;
-        siteAudio.loop = true;
-        siteAudio.volume = 0.05;
+        setInterval(() => {
+            currentNameIndex = (currentNameIndex + 1) % nameList.length;
+            const targetWord = nameList[currentNameIndex];
+            let iterations = 0;
+            
+            const scrambleInterval = setInterval(() => {
+                hackerText.innerText = targetWord.split("")
+                    .map((letter, index) => {
+                        if(index < iterations) return targetWord[index];
+                        return letters[Math.floor(Math.random() * letters.length)];
+                    }).join("");
+                
+                if(iterations >= targetWord.length) clearInterval(scrambleInterval);
+                iterations += 1 / 3; // Controls how fast the cipher decodes
+            }, 30);
+        }, 10000); // Triggers every 10 seconds
 
-        // Debug helper — check console if audio still fails
-        siteAudio.addEventListener('error', (e) => {
-            console.error('Audio failed to load:', randomSong, siteAudio.error);
+        /* =========================================
+           BOOT SEQUENCE & RANDOM AUDIO LOGIC
+        ========================================= */
+        const initScreen = document.getElementById('init-screen');
+        const initBtn = document.getElementById('init-btn');
+        const bootScreen = document.getElementById('boot-screen');
+        const mainContent = document.getElementById('main-content');
+        const edgeVisualizer = document.getElementById('edge-glow-visualizer');
+
+        let siteAudio = null;
+        let audioContext = null;
+        let analyser = null;
+        let dataArray = null;
+        let isAudioSetup = false;
+
+        const playlist = ['audio1.mp3', 'audio2.mp3', 'audio3.mp3'];
+
+        initBtn.addEventListener('click', async () => {
+            const randomIndex = Math.floor(Math.random() * playlist.length);
+            const randomSong = playlist[randomIndex];
+            
+            siteAudio = new Audio(randomSong);
+            siteAudio.loop = true; 
+            siteAudio.volume = 0.05;
+
+            siteAudio.onerror = () => { console.error("FAILED TO LOAD:", randomSong); };
+            
+            initScreen.style.opacity = '0';
+            
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === 'suspended') { await audioContext.resume(); }
+
+            setupAudioAnalyser();
+
+            setTimeout(() => {
+                initScreen.style.display = 'none';
+                bootScreen.style.display = 'flex';
+                advanceBoot();
+            }, 300);
         });
 
-        initScreen.style.opacity = '0';
-
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        setupAudioAnalyser();
-
-        setTimeout(() => {
-            initScreen.style.display = 'none';
-            bootScreen.style.display = 'flex';
-            advanceBoot();
-        }, 300);
-    });
-
-    function setupAudioAnalyser() {
-        if (!audioContext || isAudioSetup || !siteAudio) return;
-
-        analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
-
-        const source = audioContext.createMediaElementSource(siteAudio);
-        source.connect(analyser);
-        analyser.connect(audioContext.destination);
-
-        dataArray = new Uint8Array(analyser.frequencyBinCount);
-        isAudioSetup = true;
-    }
-
-    function detectBeat() {
-        if (!analyser || !dataArray) return;
-        analyser.getByteFrequencyData(dataArray);
-
-        let sumBass = 0;
-        for (let i = 0; i < 12; i++) {
-            sumBass += dataArray[i];
+        function setupAudioAnalyser() {
+            if (!audioContext || isAudioSetup || !siteAudio) return;
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256; 
+            const source = audioContext.createMediaElementSource(siteAudio);
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            isAudioSetup = true;
         }
-        const averageBass = sumBass / 12;
 
-        let intensity = (averageBass - 30) / 200;
-        if (intensity < 0) intensity = 0;
-        if (intensity > 1) intensity = 1;
+        function detectBeat() {
+            if (!analyser || !dataArray) return;
+            analyser.getByteFrequencyData(dataArray);
 
-        const spread = 10 + (intensity * 120);
-        const alpha = 0.1 + (intensity * 0.7);
+            let sumBass = 0;
+            for (let i = 0; i < 12; i++) { sumBass += dataArray[i]; }
+            const averageBass = sumBass / 12; 
 
-        edgeVisualizer.style.boxShadow = `inset 0 0 ${spread}px rgba(57, 255, 20, ${alpha}), 0 0 ${spread}px rgba(57, 255, 20, ${alpha})`;
-        requestAnimationFrame(detectBeat);
-    }
+            let intensity = (averageBass - 30) / 200; 
+            if (intensity < 0) intensity = 0;
+            if (intensity > 1) intensity = 1;
 
-    const bootSequence = [
-        "INIT ROOT PROCESS...",
-        "LOADING KERNEL MODULES...",
-        "MOUNTING VFS: /dev/sda1...",
-        "STARTING NETWORK DAEMON...",
-        "RESOLVING HOST: sick.ly...",
-        "ESTABLISHING SECURE CONNECTION...",
-        "HANDSHAKE SUCCESSFUL.",
-        "DECRYPTING PAYLOAD...",
-        "ACCESS GRANTED."
-    ];
+            const spread = 10 + (intensity * 120); 
+            const alpha = 0.1 + (intensity * 0.7); 
 
-    let lineIndex = 0;
-    let spinnerInterval = null;
-    const spinnerFrames = ['/', '-', '\\', '|'];
+            edgeVisualizer.style.boxShadow = `inset 0 0 ${spread}px rgba(57, 255, 20, ${alpha}), 0 0 ${spread}px rgba(57, 255, 20, ${alpha})`;
+            requestAnimationFrame(detectBeat);
+        }
 
-    function advanceBoot() {
-        if (lineIndex < bootSequence.length) {
-            const newLine = document.createElement('div');
-            newLine.className = 'log-line';
-            bootScreen.appendChild(newLine);
+        const bootSequence = [
+            "INIT ROOT PROCESS...",
+            "LOADING KERNEL MODULES...",
+            "MOUNTING VFS: /dev/sda1...",
+            "STARTING NETWORK DAEMON...",
+            "RESOLVING HOST: sick.ly...",
+            "ESTABLISHING SECURE CONNECTION...",
+            "HANDSHAKE SUCCESSFUL.",
+            "DECRYPTING PAYLOAD...",
+            "ACCESS GRANTED."
+        ];
 
-            let spinnerIndex = 0;
-            clearInterval(spinnerInterval);
-            spinnerInterval = setInterval(() => {
-                newLine.textContent = `${bootSequence[lineIndex]} ${spinnerFrames[spinnerIndex]}`;
-                spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
-            }, 50);
+        let lineIndex = 0;
+        let spinnerInterval = null;
+        const spinnerFrames = ['/', '-', '\\', '|'];
 
-            const nextDelay = Math.floor(Math.random() * 300) + 150;
-            setTimeout(() => {
+        function advanceBoot() {
+            if (lineIndex < bootSequence.length) {
+                const newLine = document.createElement('div');
+                newLine.className = 'log-line';
+                bootScreen.appendChild(newLine);
+                
+                let spinnerIndex = 0;
                 clearInterval(spinnerInterval);
-                newLine.textContent = bootSequence[lineIndex];
-                lineIndex++;
-                advanceBoot();
-            }, nextDelay);
-        } else {
-            siteAudio.play().then(() => {
-                detectBeat();
-            }).catch(err => console.log("Audio play blocked:", err));
+                spinnerInterval = setInterval(() => {
+                    newLine.textContent = `${bootSequence[lineIndex]} ${spinnerFrames[spinnerIndex]}`;
+                    spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
+                }, 50);
 
-            setTimeout(() => {
-                bootScreen.style.opacity = '0';
+                const nextDelay = Math.floor(Math.random() * 300) + 150; 
                 setTimeout(() => {
-                    bootScreen.style.display = 'none';
-                    edgeVisualizer.style.opacity = '1';
-                    mainContent.classList.add('visible');
-                }, 500);
-            }, 400);
+                    clearInterval(spinnerInterval);
+                    newLine.textContent = bootSequence[lineIndex]; 
+                    lineIndex++;
+                    advanceBoot();
+                }, nextDelay);
+            } else {
+                siteAudio.play().then(() => { detectBeat(); }).catch(err => console.log("Audio play blocked", err));
+
+                setTimeout(() => {
+                    bootScreen.style.opacity = '0';
+                    setTimeout(() => {
+                        bootScreen.style.display = 'none';
+                        edgeVisualizer.style.opacity = '1'; 
+                        mainContent.classList.add('visible');
+                    }, 500);
+                }, 400); 
+            }
         }
-    }
     </script>
 </body>
 </html>
