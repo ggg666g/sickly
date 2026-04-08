@@ -1,4 +1,4 @@
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,7 +20,6 @@
             --term-glow: 0 0 5px rgba(57, 255, 20, 0.4), 0 0 10px rgba(57, 255, 20, 0.2);
         }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: var(--bg-color); }
         ::-webkit-scrollbar-thumb { background: var(--term-green); border-radius: 10px; }
@@ -156,7 +155,6 @@
             text-shadow: var(--term-glow);
         }
 
-        /* UPDATED CURSOR WITH EASTER EGG CSS */
         .cursor {
             display: inline-block;
             width: 20px;
@@ -249,9 +247,6 @@
     </div>
 
     <script>
-        /* =========================================
-           SPIDER WEB BACKGROUND LOGIC (MOBILE FIXED)
-        ========================================= */
         const canvas = document.getElementById('web-canvas');
         const ctx = canvas.getContext('2d');
         let width, height;
@@ -295,13 +290,13 @@
             particles.push(new Particle());
         }
 
-        // MOUSE AND TOUCH TRACKING
+        // mouse tracking
         window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
         window.addEventListener('touchmove', e => { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; });
         window.addEventListener('mouseout', () => { mouse.x = null; mouse.y = null; });
         window.addEventListener('touchend', () => { mouse.x = null; mouse.y = null; });
 
-        // MOUSE AND TOUCH CLICK SPAWNER
+        // mosue
         function spawnWebs(x, y) {
             for(let i = 0; i < 8; i++) { particles.push(new Particle(x, y, true)); }
             if(particles.length > 400) { particles.splice(0, 8); }
@@ -344,10 +339,7 @@
             requestAnimationFrame(animateWeb);
         }
         animateWeb();
-
-        /* =========================================
-           HACKER TEXT RANDOMIZER LOGIC
-        ========================================= */
+// fuick
         const hackerText = document.getElementById('hacker-text');
         const nameList = ['sick.ly', 'graham', 'WoRrY', 'WrY.RiP', 'g.rich'];
         const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*";
@@ -366,13 +358,11 @@
                     }).join("");
                 
                 if(iterations >= targetWord.length) clearInterval(scrambleInterval);
-                iterations += 1 / 9; // Controls how fast the cipher decodes
+                iterations += 1 / 9; // speed
             }, 30);
-        }, 10000); // Triggers every 10 seconds
+        }, 10000); // 10 sec
 
-        /* =========================================
-           BOOT SEQUENCE & RANDOM AUDIO LOGIC
-        ========================================= */
+
         const initScreen = document.getElementById('init-screen');
         const initBtn = document.getElementById('init-btn');
         const bootScreen = document.getElementById('boot-screen');
@@ -491,9 +481,8 @@
             }
         }
 
-        /* =========================================
-           SECRET PORTAL TO G.RICH
-        ========================================= */
+
+
         const cursorPortal = document.querySelector('.cursor');
         cursorPortal.title = "secret"; 
         cursorPortal.addEventListener('click', () => {
