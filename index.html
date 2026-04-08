@@ -149,24 +149,34 @@
             pointer-events: auto;
         }
 
-        h1 {
-            font-size: 5rem;
-            font-weight: normal;
-            letter-spacing: -2px;
-            position: relative;
-            text-shadow: var(--term-glow);
-        }
+<h1><span id="hacker-text">sick.ly</span><a href="https://g.rich" class="cursor" title="SWITCH NODE"></a></h1>
 
+/* Updated Clickable Cursor */
         .cursor {
             display: inline-block;
-            width: 20px;
-            height: 1em;
-            background-color: var(--term-green);
+            width: 22px;
+            height: 1.1em;
+            background-color: currentColor; /* Matches the green or blue automatically */
             vertical-align: bottom;
-            animation: blink 1s step-end infinite;
-            margin-left: 5px;
-            box-shadow: var(--term-glow);
+            animation: blink 1.1s step-end infinite;
+            margin-left: 7px;
+            box-shadow: 0 0 15px currentColor;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
+
+        a.cursor {
+            cursor: pointer !important; /* Overrides the spiderweb mouse if they find it */
+        }
+
+        /* The Secret Hint: Stops blinking and grows when hovered */
+        a.cursor:hover {
+            animation: none; 
+            opacity: 1;
+            transform: scale(1.3);
+            box-shadow: 0 0 30px currentColor;
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
         @keyframes blink {
             0%, 100% { opacity: 1; }
