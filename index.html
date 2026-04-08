@@ -281,7 +281,7 @@
             }
         }
 
-        const particleCount = window.innerWidth < 600 ? 40 : 80;
+        const particleCount = window.innerWidth < 600 ? 60 : 120;
         for(let i = 0; i < particleCount; i++) {
             particles.push(new Particle());
         }
@@ -295,7 +295,7 @@
         // MOUSE AND TOUCH CLICK SPAWNER
         function spawnWebs(x, y) {
             for(let i = 0; i < 8; i++) { particles.push(new Particle(x, y, true)); }
-            if(particles.length > 150) { particles.splice(0, 8); }
+            if(particles.length > 400) { particles.splice(0, 8); }
         }
         window.addEventListener('click', e => spawnWebs(e.clientX, e.clientY));
         window.addEventListener('touchstart', e => spawnWebs(e.touches[0].clientX, e.touches[0].clientY));
@@ -309,7 +309,7 @@
                     let dx = particles[i].x - particles[j].x;
                     let dy = particles[i].y - particles[j].y;
                     let dist = Math.sqrt(dx*dx + dy*dy);
-                    if (dist < 120) {
+                    if (dist < 150) {
                         ctx.beginPath();
                         ctx.strokeStyle = `rgba(57, 255, 20, ${1 - dist/120})`;
                         ctx.lineWidth = 0.5;
@@ -357,7 +357,7 @@
                     }).join("");
                 
                 if(iterations >= targetWord.length) clearInterval(scrambleInterval);
-                iterations += 1 / 6; // Controls how fast the cipher decodes
+                iterations += 1 / 9; // Controls how fast the cipher decodes
             }, 30);
         }, 10000); // Triggers every 10 seconds
 
