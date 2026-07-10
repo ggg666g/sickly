@@ -1,53 +1,591 @@
-<!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trace Sequence</title>
-    
-    <!-- Leaflet CSS -->
+    <title>sick.ly</title>
+
+    <meta name="description" content="[A cool page made by graham]">
+    <meta property="og:title" content="sick.ly">
+    <meta property="og:description" content="[A landing page made by graham]">
+    <meta property="og:image" content="https://sick.ly/sickly.png">
+    <meta property="og:url" content="https://sick.ly">
+    <meta name="theme-color" content="#39ff14">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
+
     <style>
-        body, html {
+        :root {
+            --bg-color: #030303;
+            --term-green: #39ff14;
+            --term-red: #ff2b2b;
+            --term-glow: 0 0 5px rgba(57, 255, 20, 0.4), 0 0 10px rgba(57, 255, 20, 0.2);
+            --term-red-glow: 0 0 6px rgba(255, 43, 43, 0.5), 0 0 12px rgba(255, 43, 43, 0.25);
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: var(--term-green); border-radius: 10px; }
+
+        * {
             margin: 0;
             padding: 0;
-            height: 100%;
-            width: 100%;
-            background-color: #000;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--term-green);
+            font-family: 'Share Tech Mono', 'Courier New', Courier, monospace;
             overflow: hidden;
-        }
-        
-        #map {
-            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        /* ---------- Geotrace map background ---------- */
+
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
             background-color: #000;
+            pointer-events: none;
+            filter: brightness(1.15) contrast(2.6) sepia(1) hue-rotate(72deg) saturate(5.5);
         }
 
-        /* 
-           Hacker map filter:
-           Inverts standard dark tiles into glowing green lines
-        */
-        .leaflet-tile {
-            filter: brightness(1.2) contrast(3) sepia(1) hue-rotate(70deg) saturate(6) !important;
+        #map-vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: radial-gradient(circle at center, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.35) 55%, rgba(0, 0, 0, 0.8) 100%);
+            pointer-events: none;
         }
 
-        /* Ensure Leaflet controls (watermark/zoom) are completely hidden */
-        .leaflet-control-container {
-            display: none !important;
+        .leaflet-control-container { display: none !important; }
+
+        #map-radar {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 70vmin;
+            height: 70vmin;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, rgba(255, 43, 43, 0.35), rgba(255, 43, 43, 0) 22%);
+            mix-blend-mode: screen;
+            opacity: 0;
+            transition: opacity 1.4s ease;
+            animation: radar-spin 4.2s linear infinite;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        @keyframes radar-spin {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to   { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        #crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 160px;
+            height: 160px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 6;
+            opacity: 0;
+            transition: opacity 1s ease 0.3s;
+        }
+
+        #crosshair.visible { opacity: 0.4; }
+
+        #crosshair .ch-line {
+            position: absolute;
+            background: var(--term-red);
+        }
+
+        #crosshair .ch-h { top: 50%; left: 8%; width: 84%; height: 1px; transform: translateY(-50%); }
+        #crosshair .ch-v { left: 50%; top: 8%; height: 84%; width: 1px; transform: translateX(-50%); }
+
+        #crosshair .ch-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 64px;
+            height: 64px;
+            border: 1px solid var(--term-red);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: ch-pulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes ch-pulse {
+            0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+            50%      { opacity: 1;   transform: translate(-50%, -50%) scale(1.08); }
+        }
+
+        #trace-readout {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 6;
+            font-size: 11px;
+            line-height: 1.7;
+            padding: 10px 14px;
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            background: rgba(3, 3, 3, 0.45);
+            opacity: 0;
+            transition: opacity 1s ease 0.6s;
+            pointer-events: none;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        #trace-readout.visible { opacity: 0.85; }
+        #trace-readout .trace-line span { color: var(--term-red); }
+
+        /* ---------- CRT / scanline overlay ---------- */
+
+        body::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 5;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        #web-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        #edge-glow-visualizer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 4;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        #init-screen {
+            position: absolute;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            transition: opacity 0.5s ease;
+        }
+
+        #init-btn {
+            background: none;
+            border: 1px solid var(--term-green);
+            color: var(--term-green);
+            font-family: inherit;
+            font-size: 1.2rem;
+            padding: 15px 30px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s ease;
+            animation: pulse-init 2s infinite;
+        }
+
+        #init-btn:hover {
+            background-color: var(--term-green);
+            color: var(--bg-color);
+            font-weight: bold;
+        }
+
+        @keyframes pulse-init {
+            0% { opacity: 0.8; box-shadow: 0 0 5px rgba(57, 255, 20, 0.4); }
+            50% { opacity: 1; box-shadow: 0 0 20px rgba(57, 255, 20, 0.8); }
+            100% { opacity: 0.8; box-shadow: 0 0 5px rgba(57, 255, 20, 0.4); }
+        }
+
+        #boot-screen {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            z-index: 10;
+            display: none;
+            flex-direction: column;
+            transition: opacity 0.5s ease-out;
+        }
+
+        .log-line {
+            font-size: 20px;
+            margin-bottom: 6px;
+        }
+
+        #main-content {
+            opacity: 0;
+            text-align: center;
+            z-index: 8;
+            position: relative;
+            transform: scale(0.95);
+            transition: opacity 2s ease, transform 2s ease;
+            pointer-events: none;
+        }
+
+        #main-content.visible {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+
+        h1 {
+            font-size: 5rem;
+            font-weight: normal;
+            letter-spacing: -2px;
+            position: relative;
+            text-shadow: var(--term-glow);
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 20px;
+            height: 1em;
+            background-color: currentColor;
+            vertical-align: bottom;
+            animation: blink 1s step-end infinite;
+            margin-left: 5px;
+            box-shadow: var(--term-glow);
+            cursor: pointer !important;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .cursor:hover {
+            animation: none;
+            opacity: 1;
+            transform: scale(1.3);
+            box-shadow: 0 0 25px currentColor;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        p.subtitle {
+            margin-top: 10px;
+            font-size: 1.2rem;
+            opacity: 0.8;
+            text-shadow: var(--term-glow);
+        }
+
+        .socials {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 40px;
+        }
+
+        .social-btn {
+            color: var(--term-green);
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 10px 20px;
+            border: 1px solid var(--term-green);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 5px rgba(57, 255, 20, 0.1);
+        }
+
+        .social-btn:hover {
+            background-color: var(--term-green);
+            color: var(--bg-color);
+            font-weight: bold;
+            box-shadow: var(--term-glow);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #map-radar { animation: none; opacity: 0 !important; }
+            #crosshair .ch-ring { animation: none; }
+            .cursor { animation: none; }
+            #init-btn { animation: none; }
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 3.5rem; }
+            .socials { flex-direction: column; gap: 15px; align-items: center; }
+            .social-btn { width: 200px; }
+            #boot-screen { top: 15px; left: 15px; }
+            .log-line { font-size: 16px; }
+            #crosshair { width: 110px; height: 110px; }
+            #crosshair .ch-ring { width: 46px; height: 46px; }
+            #trace-readout { font-size: 9px; padding: 8px 10px; left: 12px; bottom: 12px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Fullscreen Map Container -->
     <div id="map"></div>
+    <div id="map-vignette"></div>
+    <canvas id="web-canvas"></canvas>
+    <div id="map-radar"></div>
+    <div id="edge-glow-visualizer"></div>
 
-    <!-- Leaflet JS -->
+    <div id="crosshair">
+        <div class="ch-line ch-h"></div>
+        <div class="ch-line ch-v"></div>
+        <div class="ch-ring"></div>
+    </div>
+
+    <div id="trace-readout">
+        <div class="trace-line">STATUS: <span id="t-status">STANDBY</span></div>
+        <div class="trace-line">IP: <span id="t-ip">--.--.--.--</span></div>
+        <div class="trace-line">LOC: <span id="t-loc">UNKNOWN</span></div>
+        <div class="trace-line">COORDS: <span id="t-coords">--, --</span></div>
+    </div>
+
+    <div id="init-screen">
+        <button id="init-btn">[ INITIATE CONNECTION ]</button>
+    </div>
+
+    <div id="boot-screen"></div>
+
+    <div id="main-content">
+        <h1><span id="hacker-text">sick.ly</span><span class="cursor"></span></h1>
+        <p class="subtitle">g <3</p>
+
+        <div class="socials">
+            <a href="https://discord.com/users/947924966769328158" class="social-btn" target="_blank">Discord</a>
+            <a href="https://t.me/arerosesred" class="social-btn" target="_blank">Telegram</a>
+            <a href="https://www.instagram.com/graham2tired" class="social-btn" target="_blank">Instagram</a>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
     <script>
-        // 1. Initialize map (Removed ALL controls and watermarks)
+        // =====================================================
+        // Particle web background
+        // =====================================================
+        const canvas = document.getElementById('web-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let particles = [];
+        const mouse = { x: null, y: null };
+
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor(x, y, isClick) {
+                this.x = x || Math.random() * width;
+                this.y = y || Math.random() * height;
+                let speed = isClick ? (Math.random() * 4 + 1) : 0.5;
+                this.vx = (Math.random() - 0.5) * speed;
+                this.vy = (Math.random() - 0.5) * speed;
+                this.radius = 1.5;
+            }
+            update() {
+                if (Math.abs(this.vx) > 0.5) this.vx *= 0.98;
+                if (Math.abs(this.vy) > 0.5) this.vy *= 0.98;
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+            }
+            draw() {
+                ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        const particleCount = window.innerWidth < 600 ? 60 : 120;
+        for (let i = 0; i < particleCount; i++) {
+            particles.push(new Particle());
+        }
+
+        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener('touchmove', e => { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; });
+        window.addEventListener('mouseout', () => { mouse.x = null; mouse.y = null; });
+        window.addEventListener('touchend', () => { mouse.x = null; mouse.y = null; });
+
+        function spawnWebs(x, y) {
+            for (let i = 0; i < 8; i++) { particles.push(new Particle(x, y, true)); }
+            if (particles.length > 400) { particles.splice(0, 8); }
+        }
+        window.addEventListener('click', e => spawnWebs(e.clientX, e.clientY));
+        window.addEventListener('touchstart', e => spawnWebs(e.touches[0].clientX, e.touches[0].clientY));
+
+        function animateWeb() {
+            ctx.clearRect(0, 0, width, height);
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+                for (let j = i; j < particles.length; j++) {
+                    let dx = particles[i].x - particles[j].x;
+                    let dy = particles[i].y - particles[j].y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(57, 255, 20, ${1 - dist / 120})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+                if (mouse.x != null) {
+                    let dx = particles[i].x - mouse.x;
+                    let dy = particles[i].y - mouse.y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(57, 255, 20, ${1 - dist / 150})`;
+                        ctx.lineWidth = 1;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(mouse.x, mouse.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animateWeb);
+        }
+        animateWeb();
+
+        const hackerText = document.getElementById('hacker-text');
+        const nameList = ['sick.ly', 'graham', 'WoRrY', 'WrY.RiP', 'g.rich'];
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*";
+        let currentNameIndex = 0;
+
+        setInterval(() => {
+            currentNameIndex = (currentNameIndex + 1) % nameList.length;
+            const targetWord = nameList[currentNameIndex];
+            let iterations = 0;
+
+            const scrambleInterval = setInterval(() => {
+                hackerText.innerText = targetWord.split("")
+                    .map((letter, index) => {
+                        if (index < iterations) return targetWord[index];
+                        return letters[Math.floor(Math.random() * letters.length)];
+                    }).join("");
+
+                if (iterations >= targetWord.length) clearInterval(scrambleInterval);
+                iterations += 1 / 9;
+            }, 30);
+        }, 10000);
+
+        // =====================================================
+        // Geotrace: IP geolocation + Leaflet zoom-in sequence
+        // =====================================================
+
+        function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+        function lerp(a, b, t) { return a + (b - a) * t; }
+        function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+        function updateReadout({ status, ip, city, region, country, lat, lon }) {
+            const set = (id, val) => {
+                const el = document.getElementById(id);
+                if (el && val !== undefined && val !== null) el.textContent = val;
+            };
+            set('t-status', status);
+            set('t-ip', ip);
+            set('t-loc', [city, region, country].filter(Boolean).join(', ') || 'UNKNOWN');
+            if (typeof lat === 'number' && typeof lon === 'number') {
+                set('t-coords', `${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+            }
+        }
+
+        async function fetchWithTimeout(url, ms = 5000) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), ms);
+            try {
+                return await fetch(url, { signal: controller.signal });
+            } finally {
+                clearTimeout(id);
+            }
+        }
+
+        // Multiple providers, tried in order. All are free, keyless, CORS-enabled
+        // IP geolocation APIs. If every one of them fails (offline, blocked,
+        // rate-limited) we fall back to a neutral placeholder point instead of
+        // silently doing nothing.
+        const GEO_PROVIDERS = [
+            {
+                url: 'https://ipapi.co/json/',
+                parse: (d) => (d && !d.error && d.latitude && d.longitude)
+                    ? { lat: d.latitude, lon: d.longitude, city: d.city, region: d.region, country: d.country_name, ip: d.ip }
+                    : null
+            },
+            {
+                url: 'https://ipwho.is/',
+                parse: (d) => (d && d.success !== false && d.latitude && d.longitude)
+                    ? { lat: d.latitude, lon: d.longitude, city: d.city, region: d.region, country: d.country, ip: d.ip }
+                    : null
+            },
+            {
+                url: 'https://get.geojs.io/v1/ip/geo.json',
+                parse: (d) => (d && d.latitude && d.longitude)
+                    ? { lat: parseFloat(d.latitude), lon: parseFloat(d.longitude), city: d.city, region: d.region, country: d.country, ip: d.ip }
+                    : null
+            }
+        ];
+
+        async function resolveLocation() {
+            for (const provider of GEO_PROVIDERS) {
+                try {
+                    const res = await fetchWithTimeout(provider.url, 5000);
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    const parsed = provider.parse(data);
+                    if (parsed) return parsed;
+                } catch (err) {
+                    console.warn('[trace] provider failed:', provider.url, err);
+                }
+            }
+            console.warn('[trace] all geo providers failed, using fallback origin');
+            return {
+                lat: 39.8283, lon: -98.5795,
+                city: 'UNKNOWN', region: 'UNKNOWN', country: 'UNKNOWN',
+                ip: '0.0.0.0', fallback: true
+            };
+        }
+
+        // Kick the lookup off immediately on load so it's ready (or close to it)
+        // by the time the boot sequence finishes.
+        const locationPromise = resolveLocation();
+
         const map = L.map('map', {
             zoomControl: false,
             attributionControl: false,
@@ -58,56 +596,215 @@
             keyboard: false
         }).setView([20, 0], 2);
 
-        // 2. Add dark map tiles (Removed the {r} flag that breaks on some connections)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png', {
             subdomains: 'abcd',
             maxZoom: 20
         }).addTo(map);
 
-        // 3. Animation Sequence Function
-        async function animateZoomSequence(lat, lon) {
-            const targetLatLng = [lat, lon];
+        let outerCircle, innerCircle, pinDot;
 
-            await new Promise(r => setTimeout(r, 1000));
-
-            // Create the targeting circle (Starts massive: ~3000km radius)
-            const trackingCircle = L.circle(targetLatLng, {
-                color: '#00ff00', 
-                weight: 2,
-                fillColor: '#00ff00',
-                fillOpacity: 0.2,
-                radius: 3000000 
-            }).addTo(map);
-            
-            // STAGE 1: Continent Level
-            map.flyTo(targetLatLng, 4, { duration: 2.5, easeLinearity: 0.25 });
-            await new Promise(r => setTimeout(r, 1000));
-            trackingCircle.setRadius(1000000); 
-            await new Promise(r => setTimeout(r, 2000));
-
-            // STAGE 2: Country/State Level
-            map.flyTo(targetLatLng, 7, { duration: 2.5 });
-            await new Promise(r => setTimeout(r, 1000));
-            trackingCircle.setRadius(250000);
-            await new Promise(r => setTimeout(r, 2000));
-
-            // STAGE 3: City Level
-            map.flyTo(targetLatLng, 12, { duration: 2.5 });
-            await new Promise(r => setTimeout(r, 1000));
-            trackingCircle.setRadius(10000);
+        function animateRadius(circle, fromR, toR, duration) {
+            const start = performance.now();
+            function step(now) {
+                const t = Math.min((now - start) / duration, 1);
+                circle.setRadius(lerp(fromR, toR, easeOutCubic(t)));
+                if (t < 1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
         }
 
-        // 4. Fetch the visitor's IP and Coordinates via HTTPS
-        fetch('https://ipapi.co/json/')
-            .then(response => response.json())
-            .then(data => {
-                if (!data.error && data.latitude && data.longitude) {
-                    animateZoomSequence(data.latitude, data.longitude);
-                }
-            })
-            .catch(error => {
-                console.error('Trace failed:', error);
+        function breathe(circle, rMin, rMax, duration) {
+            function step(now) {
+                const t = (now % duration) / duration;
+                const s = (Math.sin(t * Math.PI * 2) + 1) / 2;
+                circle.setRadius(lerp(rMin, rMax, s));
+                requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        }
+
+        async function animateZoomSequence(loc) {
+            const target = [loc.lat, loc.lon];
+
+            updateReadout({
+                status: loc.fallback ? 'SIGNAL OBSCURED' : 'TRACING...',
+                ip: loc.ip, city: loc.city, region: loc.region, country: loc.country,
+                lat: loc.lat, lon: loc.lon
             });
+
+            await wait(500);
+
+            outerCircle = L.circle(target, { color: '#ff2b2b', weight: 1, fillColor: '#ff2b2b', fillOpacity: 0.06, radius: 3000000, interactive: false }).addTo(map);
+            innerCircle = L.circle(target, { color: '#ff2b2b', weight: 2, fillOpacity: 0, radius: 2500000, interactive: false }).addTo(map);
+
+            // Stage 1: continent
+            map.flyTo(target, 4, { duration: 2.2 });
+            await wait(700);
+            animateRadius(outerCircle, 3000000, 950000, 1700);
+            animateRadius(innerCircle, 2500000, 780000, 1700);
+            await wait(2000);
+
+            // Stage 2: country / state
+            map.flyTo(target, 7, { duration: 2.2 });
+            await wait(700);
+            animateRadius(outerCircle, 950000, 200000, 1700);
+            animateRadius(innerCircle, 780000, 160000, 1700);
+            await wait(2000);
+
+            // Stage 3: city
+            map.flyTo(target, 12, { duration: 2.4 });
+            await wait(800);
+            animateRadius(outerCircle, 200000, 5000, 1700);
+            animateRadius(innerCircle, 160000, 3200, 1700);
+            await wait(1900);
+
+            pinDot = L.circleMarker(target, { radius: 4, color: '#ff5050', fillColor: '#ff5050', fillOpacity: 1, weight: 1, interactive: false }).addTo(map);
+
+            updateReadout({
+                status: loc.fallback ? 'APPROX. LOCK (FALLBACK)' : 'TARGET LOCKED',
+                ip: loc.ip, city: loc.city, region: loc.region, country: loc.country,
+                lat: loc.lat, lon: loc.lon
+            });
+
+            const radarEl = document.getElementById('map-radar');
+            if (radarEl) radarEl.style.opacity = '1';
+
+            breathe(outerCircle, 4600, 5600, 2600);
+        }
+
+        // =====================================================
+        // Init / boot sequence / audio
+        // =====================================================
+
+        const initScreen = document.getElementById('init-screen');
+        const initBtn = document.getElementById('init-btn');
+        const bootScreen = document.getElementById('boot-screen');
+        const mainContent = document.getElementById('main-content');
+        const edgeVisualizer = document.getElementById('edge-glow-visualizer');
+        const crosshair = document.getElementById('crosshair');
+        const traceReadout = document.getElementById('trace-readout');
+
+        let siteAudio = null;
+        let audioContext = null;
+        let analyser = null;
+        let dataArray = null;
+        let isAudioSetup = false;
+
+        const playlist = ['audio1.mp3', 'audio2.mp3', 'audio3.mp3'];
+
+        initBtn.addEventListener('click', async () => {
+            const randomIndex = Math.floor(Math.random() * playlist.length);
+            const randomSong = playlist[randomIndex];
+
+            siteAudio = new Audio(randomSong);
+            siteAudio.loop = true;
+            siteAudio.volume = 0.05;
+
+            siteAudio.onerror = () => { console.error("FAILED TO LOAD:", randomSong); };
+
+            initScreen.style.opacity = '0';
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === 'suspended') { await audioContext.resume(); }
+
+            setupAudioAnalyser();
+
+            crosshair.classList.add('visible');
+            traceReadout.classList.add('visible');
+            locationPromise.then(loc => animateZoomSequence(loc));
+
+            setTimeout(() => {
+                initScreen.style.display = 'none';
+                bootScreen.style.display = 'flex';
+                advanceBoot();
+            }, 300);
+        });
+
+        function setupAudioAnalyser() {
+            if (!audioContext || isAudioSetup || !siteAudio) return;
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            const source = audioContext.createMediaElementSource(siteAudio);
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            isAudioSetup = true;
+        }
+
+        function detectBeat() {
+            if (!analyser || !dataArray) return;
+            analyser.getByteFrequencyData(dataArray);
+
+            let sumBass = 0;
+            for (let i = 0; i < 12; i++) { sumBass += dataArray[i]; }
+            const averageBass = sumBass / 12;
+
+            let intensity = (averageBass - 30) / 200;
+            if (intensity < 0) intensity = 0;
+            if (intensity > 1) intensity = 1;
+
+            const spread = 10 + (intensity * 120);
+            const alpha = 0.1 + (intensity * 0.7);
+
+            edgeVisualizer.style.boxShadow = `inset 0 0 ${spread}px rgba(57, 255, 20, ${alpha}), 0 0 ${spread}px rgba(57, 255, 20, ${alpha})`;
+            requestAnimationFrame(detectBeat);
+        }
+
+        const bootSequence = [
+            "INIT ROOT PROCESS...",
+            "LOADING KERNEL MODULES...",
+            "MOUNTING VFS: /dev/sda1...",
+            "STARTING NETWORK DAEMON...",
+            "RESOLVING HOST: sick.ly...",
+            "ESTABLISHING SECURE CONNECTION...",
+            "HANDSHAKE SUCCESSFUL.",
+            "INITIATING GEOTRACE...",
+            "ACCESS GRANTED."
+        ];
+
+        let lineIndex = 0;
+        let spinnerInterval = null;
+        const spinnerFrames = ['/', '-', '\\', '|'];
+
+        function advanceBoot() {
+            if (lineIndex < bootSequence.length) {
+                const newLine = document.createElement('div');
+                newLine.className = 'log-line';
+                bootScreen.appendChild(newLine);
+
+                let spinnerIndex = 0;
+                clearInterval(spinnerInterval);
+                spinnerInterval = setInterval(() => {
+                    newLine.textContent = `${bootSequence[lineIndex]} ${spinnerFrames[spinnerIndex]}`;
+                    spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
+                }, 50);
+
+                const nextDelay = Math.floor(Math.random() * 300) + 150;
+                setTimeout(() => {
+                    clearInterval(spinnerInterval);
+                    newLine.textContent = bootSequence[lineIndex];
+                    lineIndex++;
+                    advanceBoot();
+                }, nextDelay);
+            } else {
+                siteAudio.play().then(() => { detectBeat(); }).catch(err => console.log("Audio play blocked", err));
+
+                setTimeout(() => {
+                    bootScreen.style.opacity = '0';
+                    setTimeout(() => {
+                        bootScreen.style.display = 'none';
+                        edgeVisualizer.style.opacity = '1';
+                        mainContent.classList.add('visible');
+                    }, 500);
+                }, 400);
+            }
+        }
+
+        const cursorPortal = document.querySelector('.cursor');
+        cursorPortal.title = "secret";
+        cursorPortal.addEventListener('click', () => {
+            window.location.href = "https://g.rich";
+        });
     </script>
 </body>
 </html>
