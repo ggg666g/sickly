@@ -6,7 +6,7 @@
     <title>Trace Sequence</title>
     
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
         body, html {
@@ -14,8 +14,8 @@
             padding: 0;
             height: 100%;
             width: 100%;
-            background-color: #000; /* Pure black background */
-            overflow: hidden; /* Prevent scrolling */
+            background-color: #000;
+            overflow: hidden;
         }
         
         #map {
@@ -25,14 +25,14 @@
         }
 
         /* 
-           This CSS filter takes a standard dark grayscale map 
-           and turns it into a glowing, high-contrast neon green.
+           Hacker map filter:
+           Inverts standard dark tiles into glowing green lines
         */
         .leaflet-tile {
-            filter: brightness(0.8) contrast(2) sepia(1) hue-rotate(70deg) saturate(5);
+            filter: brightness(1.2) contrast(3) sepia(1) hue-rotate(70deg) saturate(6) !important;
         }
 
-        /* Ensure Leaflet controls are completely hidden */
+        /* Ensure Leaflet controls (watermark/zoom) are completely hidden */
         .leaflet-control-container {
             display: none !important;
         }
@@ -44,13 +44,13 @@
     <div id="map"></div>
 
     <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
         // 1. Initialize map (Removed ALL controls and watermarks)
         const map = L.map('map', {
             zoomControl: false,
-            attributionControl: false, // Removes the watermark
+            attributionControl: false,
             scrollWheelZoom: false,
             dragging: false,
             doubleClickZoom: false,
@@ -58,8 +58,8 @@
             keyboard: false
         }).setView([20, 0], 2);
 
-        // 2. Add dark map tiles (using the version with no city/country text labels)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+        // 2. Add dark map tiles (Removed the {r} flag that breaks on some connections)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png', {
             subdomains: 'abcd',
             maxZoom: 20
         }).addTo(map);
@@ -68,36 +68,32 @@
         async function animateZoomSequence(lat, lon) {
             const targetLatLng = [lat, lon];
 
-            // Wait a moment before starting the trace
             await new Promise(r => setTimeout(r, 1000));
 
             // Create the targeting circle (Starts massive: ~3000km radius)
             const trackingCircle = L.circle(targetLatLng, {
-                color: '#00ff00',      // Neon hacker green
+                color: '#00ff00', 
                 weight: 2,
                 fillColor: '#00ff00',
-                fillOpacity: 0.15,
+                fillOpacity: 0.2,
                 radius: 3000000 
             }).addTo(map);
             
             // STAGE 1: Continent Level
             map.flyTo(targetLatLng, 4, { duration: 2.5, easeLinearity: 0.25 });
             await new Promise(r => setTimeout(r, 1000));
-            // Shrink circle to regional
             trackingCircle.setRadius(1000000); 
             await new Promise(r => setTimeout(r, 2000));
 
             // STAGE 2: Country/State Level
             map.flyTo(targetLatLng, 7, { duration: 2.5 });
             await new Promise(r => setTimeout(r, 1000));
-            // Shrink circle to local area
             trackingCircle.setRadius(250000);
             await new Promise(r => setTimeout(r, 2000));
 
             // STAGE 3: City Level
             map.flyTo(targetLatLng, 12, { duration: 2.5 });
             await new Promise(r => setTimeout(r, 1000));
-            // Shrink circle to exact pinpoint
             trackingCircle.setRadius(10000);
         }
 
@@ -105,7 +101,6 @@
         fetch('https://ipapi.co/json/')
             .then(response => response.json())
             .then(data => {
-                // If the fetch is successful and returns coordinates, start the animation
                 if (!data.error && data.latitude && data.longitude) {
                     animateZoomSequence(data.latitude, data.longitude);
                 }
