@@ -120,15 +120,17 @@
             circle.bindPopup(`<div style="text-align:center;"><b>UNSECURED CONNECTION</b><br>IP: ${ip}<br>Location: ${city}<br><br><a href="#" style="color:#ff4444;">Protect Yourself Now</a></div>`).openPopup();
         }
 
-        // 4. Fetch the visitor's IP and Coordinates
-        // Note: ip-api is HTTP by default. For production (HTTPS), use their paid tier or a free alternative like ipapi.co
-        fetch('http://ip-api.com/json/')
+
+    // 4. Fetch the visitor's IP and Coordinates via HTTPS
+        fetch('https://ipapi.co/json/')
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'success') {
-                    animateZoomSequence(data.lat, data.lon, data.query, data.city);
-                } else {
+                // Check if the API returned an error (e.g., rate limiting)
+                if (data.error) {
                     document.getElementById('status').innerText = "Connection masked. IP not found.";
+                } else {
+                    // Note: ipapi.co uses .latitude, .longitude, and .ip
+                    animateZoomSequence(data.latitude, data.longitude, data.ip, data.city);
                 }
             })
             .catch(error => {
