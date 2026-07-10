@@ -3,139 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VPN IP Geolocation Demo</title>
+    <title>Trace Sequence</title>
     
-    <!-- Leaflet CSS for Map Styling -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     
     <style>
         body, html {
             margin: 0;
             padding: 0;
             height: 100%;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #0d1117;
-            color: #c9d1d9;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        #header {
-            padding: 30px 20px 10px 20px;
-            text-align: center;
-        }
-        h2 {
-            color: #ff4444;
-            margin: 0 0 10px 0;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-        #map-container {
-            width: 90%;
-            max-width: 1000px;
-            height: 60vh;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
-            margin-top: 10px;
-        }
-        #map {
             width: 100%;
-            height: 100%;
+            background-color: #000; /* Pure black background */
+            overflow: hidden; /* Prevent scrolling */
         }
-        .status {
-            margin-top: 15px;
-            color: #58a6ff;
-            font-weight: bold;
-            font-family: monospace;
-            font-size: 1.1em;
-            height: 24px;
+        
+        #map {
+            width: 100vw;
+            height: 100vh;
+            background-color: #000;
+        }
+
+        /* 
+           This CSS filter takes a standard dark grayscale map 
+           and turns it into a glowing, high-contrast neon green.
+        */
+        .leaflet-tile {
+            filter: brightness(0.8) contrast(2) sepia(1) hue-rotate(70deg) saturate(5);
+        }
+
+        /* Ensure Leaflet controls are completely hidden */
+        .leaflet-control-container {
+            display: none !important;
         }
     </style>
 </head>
 <body>
 
-    <div id="header">
-        <h2>Is your connection secure?</h2>
-        <p>Your current network details are exposed to the sites you visit.</p>
-        <div id="status" class="status">Initializing global scan...</div>
-    </div>
-
-    <!-- Map Wrapper -->
-    <div id="map-container">
-        <div id="map"></div>
-    </div>
+    <!-- Fullscreen Map Container -->
+    <div id="map"></div>
 
     <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     
     <script>
-        // 1. Initialize map centered on a global view (Zoom level 2)
+        // 1. Initialize map (Removed ALL controls and watermarks)
         const map = L.map('map', {
-            zoomControl: false, // Hide zoom controls for cinematic effect
+            zoomControl: false,
+            attributionControl: false, // Removes the watermark
             scrollWheelZoom: false,
-            dragging: false
+            dragging: false,
+            doubleClickZoom: false,
+            boxZoom: false,
+            keyboard: false
         }).setView([20, 0], 2);
 
-        // 2. Add dark-themed map tiles (CartoDB Dark Matter)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        // 2. Add dark map tiles (using the version with no city/country text labels)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
             subdomains: 'abcd',
             maxZoom: 20
         }).addTo(map);
 
         // 3. Animation Sequence Function
-        async function animateZoomSequence(lat, lon, ip, city) {
+        async function animateZoomSequence(lat, lon) {
             const targetLatLng = [lat, lon];
-            const statusText = document.getElementById('status');
 
-            // Pause slightly before beginning the hunt
-            await new Promise(r => setTimeout(r, 1200));
+            // Wait a moment before starting the trace
+            await new Promise(r => setTimeout(r, 1000));
+
+            // Create the targeting circle (Starts massive: ~3000km radius)
+            const trackingCircle = L.circle(targetLatLng, {
+                color: '#00ff00',      // Neon hacker green
+                weight: 2,
+                fillColor: '#00ff00',
+                fillOpacity: 0.15,
+                radius: 3000000 
+            }).addTo(map);
             
             // STAGE 1: Continent Level
-            statusText.innerText = `IP Found [${ip}] - Locking onto region...`;
             map.flyTo(targetLatLng, 4, { duration: 2.5, easeLinearity: 0.25 });
-            await new Promise(r => setTimeout(r, 3000));
+            await new Promise(r => setTimeout(r, 1000));
+            // Shrink circle to regional
+            trackingCircle.setRadius(1000000); 
+            await new Promise(r => setTimeout(r, 2000));
 
             // STAGE 2: Country/State Level
-            statusText.innerText = "Narrowing down to local sector...";
             map.flyTo(targetLatLng, 7, { duration: 2.5 });
-            await new Promise(r => setTimeout(r, 3000));
+            await new Promise(r => setTimeout(r, 1000));
+            // Shrink circle to local area
+            trackingCircle.setRadius(250000);
+            await new Promise(r => setTimeout(r, 2000));
 
             // STAGE 3: City Level
-            statusText.innerText = `Target acquired: ${city}. Your location is exposed.`;
             map.flyTo(targetLatLng, 12, { duration: 2.5 });
-            await new Promise(r => setTimeout(r, 2500));
-
-            // Draw the warning circle
-            const circle = L.circle(targetLatLng, {
-                color: '#ff4444',
-                fillColor: '#ff4444',
-                fillOpacity: 0.3,
-                radius: 5000 // 5km radius
-            }).addTo(map);
-
-            // Attach and open a popup
-            circle.bindPopup(`<div style="text-align:center;"><b>UNSECURED CONNECTION</b><br>IP: ${ip}<br>Location: ${city}<br><br><a href="#" style="color:#ff4444;">Protect Yourself Now</a></div>`).openPopup();
+            await new Promise(r => setTimeout(r, 1000));
+            // Shrink circle to exact pinpoint
+            trackingCircle.setRadius(10000);
         }
 
-
-    // 4. Fetch the visitor's IP and Coordinates via HTTPS
+        // 4. Fetch the visitor's IP and Coordinates via HTTPS
         fetch('https://ipapi.co/json/')
             .then(response => response.json())
             .then(data => {
-                // Check if the API returned an error (e.g., rate limiting)
-                if (data.error) {
-                    document.getElementById('status').innerText = "Connection masked. IP not found.";
-                } else {
-                    // Note: ipapi.co uses .latitude, .longitude, and .ip
-                    animateZoomSequence(data.latitude, data.longitude, data.ip, data.city);
+                // If the fetch is successful and returns coordinates, start the animation
+                if (!data.error && data.latitude && data.longitude) {
+                    animateZoomSequence(data.latitude, data.longitude);
                 }
             })
             .catch(error => {
-                console.error('API Error:', error);
-                document.getElementById('status').innerText = "Location blocked or API error.";
+                console.error('Trace failed:', error);
             });
     </script>
 </body>
