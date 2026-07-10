@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VPN IP Geolocation Demo</title>
+    
+    <!-- Leaflet CSS for Map Styling -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #header {
+            padding: 30px 20px 10px 20px;
+            text-align: center;
+        }
+        h2 {
+            color: #ff4444;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        #map-container {
+            width: 90%;
+            max-width: 1000px;
+            height: 60vh;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+            margin-top: 10px;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        .status {
+            margin-top: 15px;
+            color: #58a6ff;
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 1.1em;
+            height: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <h2>Is your connection secure?</h2>
+        <p>Your current network details are exposed to the sites you visit.</p>
+        <div id="status" class="status">Initializing global scan...</div>
+    </div>
+
+    <!-- Map Wrapper -->
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <script>
+        // 1. Initialize map centered on a global view (Zoom level 2)
+        const map = L.map('map', {
+            zoomControl: false, // Hide zoom controls for cinematic effect
+            scrollWheelZoom: false,
+            dragging: false
+        }).setView([20, 0], 2);
+
+        // 2. Add dark-themed map tiles (CartoDB Dark Matter)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // 3. Animation Sequence Function
+        async function animateZoomSequence(lat, lon, ip, city) {
+            const targetLatLng = [lat, lon];
+            const statusText = document.getElementById('status');
+
+            // Pause slightly before beginning the hunt
+            await new Promise(r => setTimeout(r, 1200));
+            
+            // STAGE 1: Continent Level
+            statusText.innerText = `IP Found [${ip}] - Locking onto region...`;
+            map.flyTo(targetLatLng, 4, { duration: 2.5, easeLinearity: 0.25 });
+            await new Promise(r => setTimeout(r, 3000));
+
+            // STAGE 2: Country/State Level
+            statusText.innerText = "Narrowing down to local sector...";
+            map.flyTo(targetLatLng, 7, { duration: 2.5 });
+            await new Promise(r => setTimeout(r, 3000));
+
+            // STAGE 3: City Level
+            statusText.innerText = `Target acquired: ${city}. Your location is exposed.`;
+            map.flyTo(targetLatLng, 12, { duration: 2.5 });
+            await new Promise(r => setTimeout(r, 2500));
+
+            // Draw the warning circle
+            const circle = L.circle(targetLatLng, {
+                color: '#ff4444',
+                fillColor: '#ff4444',
+                fillOpacity: 0.3,
+                radius: 5000 // 5km radius
+            }).addTo(map);
+
+            // Attach and open a popup
+            circle.bindPopup(`<div style="text-align:center;"><b>UNSECURED CONNECTION</b><br>IP: ${ip}<br>Location: ${city}<br><br><a href="#" style="color:#ff4444;">Protect Yourself Now</a></div>`).openPopup();
+        }
+
+        // 4. Fetch the visitor's IP and Coordinates
+        // Note: ip-api is HTTP by default. For production (HTTPS), use their paid tier or a free alternative like ipapi.co
+        fetch('http://ip-api.com/json/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    animateZoomSequence(data.lat, data.lon, data.query, data.city);
+                } else {
+                    document.getElementById('status').innerText = "Connection masked. IP not found.";
+                }
+            })
+            .catch(error => {
+                console.error('API Error:', error);
+                document.getElementById('status').innerText = "Location blocked or API error.";
+            });
+    </script>
+</body>
+</html>
