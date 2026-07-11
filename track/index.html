@@ -58,7 +58,27 @@
             z-index: 0;
             background-color: #000;
             pointer-events: none;
-            filter: brightness(1.15) contrast(2.6) sepia(1) hue-rotate(72deg) saturate(5.5);
+            /* Lift + neutralize the raw tiles so the duotone layer above has
+               clean luminance data to recolor. Deliberately NOT doing the
+               green tint here with contrast/sepia/hue-rotate — chaining
+               those made high-contrast filters crush the (already dark)
+               tiles to solid black before any color could register. */
+            filter: grayscale(1) brightness(1.9) contrast(1.05);
+        }
+
+        /* Duotone recolor: takes hue/saturation from this solid green layer
+           and luminosity from the map tiles behind it, so black stays black
+           and anything lighter (roads, coastlines, landmass) turns green. */
+        #map-duotone {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: var(--term-green);
+            mix-blend-mode: color;
+            pointer-events: none;
         }
 
         #map-vignette {
@@ -67,7 +87,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 1;
+            z-index: 2;
             background: radial-gradient(circle at center, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.35) 55%, rgba(0, 0, 0, 0.8) 100%);
             pointer-events: none;
         }
@@ -88,7 +108,7 @@
             transition: opacity 1.4s ease;
             animation: radar-spin 4.2s linear infinite;
             pointer-events: none;
-            z-index: 3;
+            z-index: 4;
         }
 
         @keyframes radar-spin {
@@ -104,7 +124,7 @@
             height: 160px;
             transform: translate(-50%, -50%);
             pointer-events: none;
-            z-index: 6;
+            z-index: 7;
             opacity: 0;
             transition: opacity 1s ease 0.3s;
         }
@@ -140,7 +160,7 @@
             position: fixed;
             bottom: 20px;
             left: 20px;
-            z-index: 6;
+            z-index: 7;
             font-size: 11px;
             line-height: 1.7;
             padding: 10px 14px;
@@ -167,7 +187,7 @@
             bottom: 0;
             right: 0;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 5;
+            z-index: 6;
             background-size: 100% 2px, 3px 100%;
             pointer-events: none;
         }
@@ -178,7 +198,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 2;
+            z-index: 3;
             pointer-events: none;
         }
 
@@ -188,7 +208,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 4;
+            z-index: 5;
             pointer-events: none;
             opacity: 0;
         }
@@ -353,6 +373,7 @@
 <body>
 
     <div id="map"></div>
+    <div id="map-duotone"></div>
     <div id="map-vignette"></div>
     <canvas id="web-canvas"></canvas>
     <div id="map-radar"></div>
